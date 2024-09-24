@@ -9,7 +9,7 @@
 - R (CRAN)
 - Code Ocean (https://codeocean.com/):
 --R (RStudio) (RStudio 2024.04.2-764)
--- DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`, ``,   
+-- `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`
 
 
 ### Tested Versions

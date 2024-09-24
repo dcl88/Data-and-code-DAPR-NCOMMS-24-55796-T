@@ -7,15 +7,13 @@
 - R packages: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`
 - Operating System: Linux, macOS, or Windows 10/11
 - R (CRAN)
-- Code Ocean (https://codeocean.com/):
--- RStudio Cloud Workstation (RStudio 2024.04.2-764)
--- `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`
+- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`
 
 
 ### Tested Versions
 - R: 4.3.1
 - OS: Windows 11
-- Code Ocean (https://codeocean.com/)
+- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764)
 
 ### Required Non-standard Hardware
 - No specific hardware requirements beyond a standard desktop or laptop computer.

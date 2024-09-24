@@ -1,4 +1,4 @@
-# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally
+# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally"
 
 ## 1. System Requirements
 
@@ -91,3 +91,15 @@ The demo should complete in under 2 minutes on a standard desktop computer.
   
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.
+
+---
+
+## 5. Other files in this repository
+
+The file "DataExtraction_Legumes_Master_withMetadata_240703" includes all data extracted from the results of a systematic review of the peer-reviewed literature on grain legume intercropping and rotations in agri-food systems.
+- The sheet "DataExtractionArticles" provides details for all 183 articles (382 cases) that reported at least one ecological outcome (ecosystem services and/or biodiversity) and one human well-being outcome from introducing legumes into an agri-food production system.
+- The sheet "Metadata" provides descriptions of all columns in the DataExtractionArticles sheet
+- The sheet "Systems" provides analyses of the different agri-food systems represented by the cases reviewed
+- The sheet "Quality assessment codes" shows the Quality Assessment Table used to evaluate each article for study design and reporting quality, and risk of bias.
+
+

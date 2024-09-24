@@ -79,8 +79,15 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 
 ---
 
-## 4. Running the code in R Studio
+## 4. Running the code via Code Ocean, using RStudio Cloud Workstation
 
-### Instructions to Run the code in R studio
+- Access the Code Ocean project: (https://codeocean.com/)
+- Using the RStudio Cloud Workstation (RStudio 2024.04.2-764) make sure the following packages are installed: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`. In addition, the package `cmake` also needs to be loaded from apt-get on the Code Ocean Environment.
+- Once the RStudio Cloud Workstation has opened, select the code entitled **"Models.R"**
+- Run the entire code
 
-- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`
+### Expected Outputs
+- Same outputs that are generated on the desktop version, as described earlier.
+  
+### Expected Run Time
+The demo should complete in under 2 minutes on a standard desktop computer.

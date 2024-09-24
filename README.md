@@ -71,8 +71,8 @@ The .csv files that need to be loaded into Rstudio are the following (make sure 
 ### Expected Outputs
 
 - Results from GLM and LM models, including p values
-- Figure 3: Joint impacts of legume intensification on ecosystem services or biodiversity and well-being, with each dot representing an individual case. Change is represented as a percentage, where intervention outcome is related to control (baseline). WB = well-being (economic or non-economic). Trend line is visible when a significant correlation was found (p<0.001).
-- Figure 5: Significant correlations between specific indicators of ecosystem services and well-being (WB) (each dot representing an individual case).
+- Joint impacts of legume intensification on ecosystem services or biodiversity and well-being, with each dot representing an individual case. Change is represented as a percentage, where intervention outcome is related to control (baseline). WB = well-being (economic or non-economic). Trend line is visible when a significant correlation was found (p<0.001).
+- Significant correlations between specific indicators of ecosystem services and well-being (WB) (each dot representing an individual case).
 
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.

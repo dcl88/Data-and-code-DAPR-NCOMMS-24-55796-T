@@ -19,11 +19,11 @@
 ## 2. Installation Guide
 
 ### Step 1: 
-[Install R from] (https://cran.r-project.org/bin/windows/base/ "CRAN")
+Install R from CRAN: (https://cran.r-project.org/bin/windows/base/)
 Recommended version: R 4.3.1 or later.
 
 ### Step 2: 
-Install (https://posit.co/download/rstudio-desktop/ "RStudio")
+Install RStudio: (https://posit.co/download/rstudio-desktop/)
 
 ### Step 3:
 Install the required packages by running the following command in R:

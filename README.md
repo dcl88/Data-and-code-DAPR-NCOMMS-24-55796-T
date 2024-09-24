@@ -6,17 +6,23 @@
 - R 4.3.1 or later
 - R packages: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`
 - Operating System: Linux, macOS, or Windows 10/11
+- R (CRAN)
+- Code Ocean (https://codeocean.com/):
+--R (RStudio) (RStudio 2024.04.2-764)
+-- DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`, ``,   
+
 
 ### Tested Versions
 - R: 4.3.1
 - OS: Windows 11
+- Code Ocean (https://codeocean.com/)
 
 ### Required Non-standard Hardware
 - No specific hardware requirements beyond a standard desktop or laptop computer.
 
 ---
 
-## 2. Installation Guide
+## 2. Installation Guide in RStudio
 
 ### Step 1: 
 Install R from CRAN: (https://cran.r-project.org/bin/windows/base/)
@@ -39,9 +45,9 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ---
 
-## 3. Demo
+## 3. Running the code in R Studio
 
-### Instructions to Run the Demo
+### Instructions to Run the code in R studio
 
 After installation, you can run the codes "Aggregated_models.R" and "Disaggregated_models.R" by copying it into your R script editor (or RStudio) and executing the script. The code processes multiple datasets (available on the respository as.csv files) to fit and plot models different models specified in Figures 3 and 5 of the paper submitted.
 

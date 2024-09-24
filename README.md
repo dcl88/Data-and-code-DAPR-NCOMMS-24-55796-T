@@ -19,7 +19,7 @@
 ## 2. Installation Guide
 
 ### Step 1: 
-Install R from (https://cran.r-project.org/bin/windows/base/ "CRAN")
+[Install R from] (https://cran.r-project.org/bin/windows/base/ "CRAN")
 Recommended version: R 4.3.1 or later.
 
 ### Step 2: 

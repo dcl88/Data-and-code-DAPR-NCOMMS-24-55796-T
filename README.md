@@ -47,7 +47,7 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ### Instructions to Run the code in R studio
 
-After installation, you can run the codes "Aggregated_models.R" and "Disaggregated_models.R" by copying it into your R script editor (or RStudio) and executing the script. The code processes multiple datasets (available on the respository as.csv files) to fit and plot models different models specified in Figures 3 and 5 of the paper submitted.
+After installation, you can run the codes "Aggregated_models.R" and "Disaggregated_models.R" by copying it into your R script editor (or RStudio) and executing the script. The code processes multiple datasets (available on the respository as.csv files) to fit and plot the models specified in Figures 3 and 5 of the paper submitted.
 
 The .csv files that need to be loaded into Rstudio are the following (make sure to insert the filepath of the folder where yoou are storing these data files):
 
@@ -56,7 +56,7 @@ The .csv files that need to be loaded into Rstudio are the following (make sure 
 - "Econ_wellbeing_prov_services_average_transf_2.csv"
 - "Econ_wellbeing_regul_services_average_transf_2.csv"     
 - "Econ_wellbeing_supp_services_average_transf_2.csv"
-- "Nonecon_wellbeing_Allservices_average_transf_2.csv"     
+- "Nonecon_wellbeing_allservices_average_transf_2.csv"     
 - "Nonecon_wellbeing_biocarb_services_average_transf_2.csv"
 - "Nonecon_wellbeing_prov_services_average_transf_2.csv"   
 - "Nonecon_wellbeing_regul_services_average_transf_2.csv"
@@ -68,11 +68,19 @@ The .csv files that need to be loaded into Rstudio are the following (make sure 
 - "Yieldeqcumul_profit_econ2.csv"
 - "Yieldeqcumul_savings_labour_cost_econ2.csv" 
 
+### Expected Outputs
+
+- Results from GLM and LM models, including p values
+- Figure 3: Joint impacts of legume intensification on ecosystem services or biodiversity and well-being, with each dot representing an individual case. Change is represented as a percentage, where intervention outcome is related to control (baseline). WB = well-being (economic or non-economic). Trend line is visible when a significant correlation was found (p<0.001).
+- Figure 5: Significant correlations between specific indicators of ecosystem services and well-being (WB) (each dot representing an individual case).
+
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.
 
 ---
 
-## 4. Instructions for Use
+## 4. Running the code in R Studio
 
-### Running the Software on Your Data
+### Instructions to Run the code in R studio
+
+- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`

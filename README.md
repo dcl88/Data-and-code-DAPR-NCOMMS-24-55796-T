@@ -46,7 +46,7 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ### Instructions to Run the code in R studio
 
-After installation, you can run the codes "Aggregated_models.R", "Disaggregated_models.R" and "Alluvial_socio_ecological.R" by copying it into your R script editor (or RStudio) and executing the script. The code processes multiple datasets (available on the respository as.csv files) to fit and plot the models specified in Figures 3 and 5 of the paper submitted.
+After installation, you can run the codes "Aggregated_models.R", "Disaggregated_models.R" and "Alluvial_socio_ecological.R" by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datasets from the folder "Data", and are available as .csv files) to fit and plot the models and generate visualisations included on the paper submitted.
 
 The .csv files that need to be loaded into Rstudio are the following (make sure to insert the filepath of the folder where yoou are storing these data files):
 

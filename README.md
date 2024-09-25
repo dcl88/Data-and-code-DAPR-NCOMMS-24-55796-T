@@ -1,4 +1,4 @@
-# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally"
+# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally" (DAPR - NCOMMS-24-55796-T)
 
 ## 1. System Requirements
 

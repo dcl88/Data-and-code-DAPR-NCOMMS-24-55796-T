@@ -92,7 +92,7 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 
 - Access the Code Ocean project: (https://codeocean.com/)
 - Using the RStudio Cloud Workstation (RStudio 2024.04.2-764) make sure the following packages are installed: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`. In addition, the package `cmake` also needs to be loaded from apt-get on the Code Ocean Environment.
-- Once the RStudio Cloud Workstation has opened, select the code entitled **"Models.R"**
+- Once the RStudio Cloud Workstation has opened, select the code entitled **"Models_and_visualisations.R"**
 - Run the entire code
 
 ### Expected Outputs

@@ -4,9 +4,9 @@
 
 ### Software Dependencies
 - R 4.3.1 or later
-- R packages: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`
+- R packages: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`,`scales`,`ggalluvial`
 - Operating System: Linux, macOS, or Windows 10/11
-- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`
+- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`
 
 
 ### Tested Versions
@@ -33,7 +33,7 @@ Install RStudio: (https://posit.co/download/rstudio-desktop/)
 Install the required packages by running the following command in R:
 
 ```
-install.packages(c("ggplot2", "gridExtra", "DescTools", "lme4", "performance", "ggpubr", "dplyr"))
+install.packages(c("ggplot2", "gridExtra", "DescTools", "lme4", "performance", "ggpubr", "dplyr","scales","ggalluvial"))
 ```
 
 ### Typical Install Time
@@ -46,7 +46,7 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ### Instructions to Run the code in R studio
 
-After installation, you can run the codes "Aggregated_models.R" and "Disaggregated_models.R" by copying it into your R script editor (or RStudio) and executing the script. The code processes multiple datasets (available on the respository as.csv files) to fit and plot the models specified in Figures 3 and 5 of the paper submitted.
+After installation, you can run the codes "Aggregated_models.R", "Disaggregated_models.R" and "Alluvial_socio_ecological.R" by copying it into your R script editor (or RStudio) and executing the script. The code processes multiple datasets (available on the respository as.csv files) to fit and plot the models specified in Figures 3 and 5 of the paper submitted.
 
 The .csv files that need to be loaded into Rstudio are the following (make sure to insert the filepath of the folder where yoou are storing these data files):
 
@@ -65,13 +65,15 @@ The .csv files that need to be loaded into Rstudio are the following (make sure 
 - "Yieldeqcumul_food_security_nonecon2.csv"
 - "Yieldeqcumul_natural_capital_nonecon2.csv"              
 - "Yieldeqcumul_profit_econ2.csv"
-- "Yieldeqcumul_savings_labour_cost_econ2.csv" 
+- "Yieldeqcumul_savings_labour_cost_econ2.csv"
+- "Data_maps_and_alluvial_socio_ecological.csv"
 
 ### Expected Outputs
 
 - Results from GLM and LM models, including p values
 - Joint impacts of legume intensification on ecosystem services or biodiversity and well-being, with each dot representing an individual case. Change is represented as a percentage, where intervention outcome is related to control (baseline). WB = well-being (economic or non-economic). Trend line is visible when a significant correlation was found (p<0.001).
 - Significant correlations between specific indicators of ecosystem services and well-being (WB) (each dot representing an individual case).
+- Alluvial plots with overall combined ecological and social outcomes of introducing legumes, and The joint ecological and social outcomes of different types of legumes, with each record on the y-axis representing an individual case.
 
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.
@@ -81,7 +83,7 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 ## 4. Running the code via Code Ocean, using RStudio Cloud Workstation (Online Alternative)
 
 - Access the Code Ocean project: (https://codeocean.com/)
-- Using the RStudio Cloud Workstation (RStudio 2024.04.2-764) make sure the following packages are installed: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`. In addition, the package `cmake` also needs to be loaded from apt-get on the Code Ocean Environment.
+- Using the RStudio Cloud Workstation (RStudio 2024.04.2-764) make sure the following packages are installed: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`. In addition, the package `cmake` also needs to be loaded from apt-get on the Code Ocean Environment.
 - Once the RStudio Cloud Workstation has opened, select the code entitled **"Models.R"**
 - Run the entire code
 

@@ -1,4 +1,4 @@
-# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally" (DAPR - NCOMMS-24-55796-T)
+# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally" (DAPR - NCOMMS-24-55796-T) UPDATED 2025
 
 ## 1. System Requirements
 
@@ -46,42 +46,7 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ### Instructions to Run the code in R studio
 
-After installation, you can run the codes "Aggregated_models.R", "Disaggregated_models.R", "Alluvial_socio_ecological.R" and "Maps_socio_ecological.R" by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datafiles from the folder named "Data", to fit and plot the models and generate visualisations included on the paper submitted.
-
-The data files that need to be loaded into Rstudio are the following (make sure to insert the filepath of the folder where you are storing these data files):
-
-- "Econ_wellbeing_allservices_average_transf_2.csv"         
-- "Econ_wellbeing_biocarb_services_average_transf_2.csv"   
-- "Econ_wellbeing_prov_services_average_transf_2.csv"
-- "Econ_wellbeing_regul_services_average_transf_2.csv"     
-- "Econ_wellbeing_supp_services_average_transf_2.csv"
-- "Nonecon_wellbeing_allservices_average_transf_2.csv"     
-- "Nonecon_wellbeing_biocarb_services_average_transf_2.csv"
-- "Nonecon_wellbeing_prov_services_average_transf_2.csv"   
-- "Nonecon_wellbeing_regul_services_average_transf_2.csv"
-- "Nonecon_wellbeing_supp_services_average_transf_2.csv"   
-- "Primary_production_profit_econ2.csv"
-- "Soil_organic_carbon_profit_econ2.csv"                   
-- "Yieldeqcumul_food_security_nonecon2.csv"
-- "Yieldeqcumul_natural_capital_nonecon2.csv"              
-- "Yieldeqcumul_profit_econ2.csv"
-- "Yieldeqcumul_savings_labour_cost_econ2.csv"
-- "Data_maps_and_alluvial_socio_ecological.csv"
-- "ne_10m_admin_0_countries.cpg"
-- "ne_10m_admin_0_countries.dbf"
-- "ne_10m_admin_0_countries.prj"
-- "ne_10m_admin_0_countries.README.html"
-- "ne_10m_admin_0_countries.shp"
-- "ne_10m_admin_0_countries.shx"
-- "ne_10m_admin_0_countries.VERSION.txt"
-
-### Expected Outputs
-
-- Results from GLM and LM models, including p values
-- Joint impacts of legume intensification on ecosystem services or biodiversity and well-being, with each dot representing an individual case. Change is represented as a percentage, where intervention outcome is related to control (baseline). WB = well-being (economic or non-economic). Trend line is visible when a significant correlation was found (p<0.001).
-- Significant correlations between specific indicators of ecosystem services and well-being (WB) (each dot representing an individual case).
-- Alluvial plots with overall combined ecological and social outcomes of introducing legumes, and The joint ecological and social outcomes of different types of legumes, with each record on the y-axis representing an individual case.
-- Geographic distribution of the cases and joint social-ecological outcomes percentages (a) win-win, (b) lose-lose, (c) mixed.
+After installation, you can run the codes "Aggregated_models_2025.R", and "Disaggregated_models_2025.R" by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datafiles from the folder named "Data", to fit and plot the models and generate visualisations included on the paper submitted.
 
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.
@@ -105,10 +70,8 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 
 ## 5. Other files in this repository
 
-The file "DataExtraction_Legumes_Master_withMetadata_240703" includes all data extracted from the results of a systematic review of the peer-reviewed literature on grain legume intercropping and rotations in agri-food systems.
-- The sheet "DataExtractionArticles" provides details for all 183 articles (382 cases) that reported at least one ecological outcome (ecosystem services and/or biodiversity) and one human well-being outcome from introducing legumes into an agri-food production system.
-- The sheet "Metadata" provides descriptions of all columns in the DataExtractionArticles sheet
-- The sheet "Systems" provides analyses of the different agri-food systems represented by the cases reviewed
-- The sheet "Quality assessment codes" shows the Quality Assessment Table used to evaluate each article for study design and reporting quality, and risk of bias.
+The file "Master_dataset_legumes_2025.csv" includes all data extracted from the results of a systematic review of the peer-reviewed literature on grain legume intercropping and rotations in agri-food systems.
+- The file "References_Legumes_2025" provides details for all papers and cases that reported at least one ecological outcome (ecosystem services and/or biodiversity) and one human well-being outcome from introducing legumes into an agri-food production system.
+- The file "Metadata_and_quality_assessment_codes_2025" provides descriptions of all columns in the DataExtractionArticles sheet, as well as the Quality Assessment Table used to evaluate each article for study design, reporting quality, and risk of bias.
 
 

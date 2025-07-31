@@ -73,5 +73,6 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 The file "Master_dataset_legumes_2025.csv" includes all data extracted from the results of a systematic review of the peer-reviewed literature on grain legume intercropping and rotations in agri-food systems.
 - The file "References_Legumes_2025" provides details for all papers and cases that reported at least one ecological outcome (ecosystem services and/or biodiversity) and one human well-being outcome from introducing legumes into an agri-food production system.
 - The file "Metadata_and_quality_assessment_codes_2025" provides descriptions of all columns in the DataExtractionArticles sheet, as well as the Quality Assessment Table used to evaluate each article for study design, reporting quality, and risk of bias.
+- The folder "Data" includes the filtered datasets needed to run the R codes.
 
 

@@ -46,7 +46,7 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ### Instructions to Run the code in R studio
 
-After installation, you can run the codes "Aggregated_models_2025.R", and "Disaggregated_models_2025.R" by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datafiles from the folder named "Data", to fit and plot the models and generate visualisations included on the paper submitted.
+After installation, you can run the codes "Aggregated_models_2025.R",  "Disaggregated_models_2025.R" and "Multinom.Log.Reg.Legumes.Rmd", by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datafiles from the folder named "Data", to fit and plot the models and generate visualisations included on the paper submitted.
 
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.

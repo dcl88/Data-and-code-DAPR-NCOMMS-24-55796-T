@@ -4,9 +4,9 @@
 
 ### Software Dependencies
 - R 4.3.1 or later
-- R packages: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`
+- R packages: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`, `Jtools`
 - Operating System: Linux, macOS, or Windows 10/11
-- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`
+- Code Ocean (https://codeocean.com/): RStudio Cloud Workstation (RStudio 2024.04.2-764) `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`, `Jtools`
 
 
 ### Tested Versions
@@ -33,7 +33,7 @@ Install RStudio: (https://posit.co/download/rstudio-desktop/)
 Install the required packages by running the following command in R:
 
 ```
-install.packages(c("DescTools", "lme4", "ggpubr", "performance", "dplyr", "ggplot2", "tidyverse", "gridExtra", "scales", "ggalluvial", "sp", "sf", "tmap", "stars", "raster", "viridis", "cowplot", "ggspatial"))
+install.packages(c("DescTools", "lme4", "ggpubr", "performance", "dplyr", "ggplot2", "tidyverse", "gridExtra", "scales", "ggalluvial", "sp", "sf", "tmap", "stars", "raster", "viridis", "cowplot", "ggspatial", "Jtools"))
 ```
 
 ### Typical Install Time
@@ -56,7 +56,7 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 ## 4. Running the code via Code Ocean, using RStudio Cloud Workstation (Online Alternative)
 
 - Access the Code Ocean project: (https://codeocean.com/)
-- Using the RStudio Cloud Workstation (RStudio 2024.04.2-764) make sure the following packages are installed: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`. In addition, the package `cmake` also needs to be loaded from apt-get on the Code Ocean Environment.
+- Using the RStudio Cloud Workstation (RStudio 2024.04.2-764) make sure the following packages are installed: `DescTools`, `lme4`,`ggpubr`,`performance`,`dplyr`,`ggplot2`,`tidyverse`,`gridExtra`, `MatrixModels`, `car`, `quantreg`, `rstatix`,`scales`,`ggalluvial`,`sp`, `sf`,`tmap`,`stars`,`raster`,`viridis`,`cowplot`,`ggspatial`, `Jtools`. In addition, the package `cmake` also needs to be loaded from apt-get on the Code Ocean Environment.
 - Once the RStudio Cloud Workstation has opened, select the code entitled **"Models_and_visualisations.R"**
 - Run the entire code
 

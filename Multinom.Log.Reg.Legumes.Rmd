@@ -1,0 +1,2178 @@
+---
+title: "Multinom.Log.Reg.Legumes"
+author: "Ayesha Tulloch"
+date: "2025-02-13"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+## Instructions ##
+This code develops a multinomial logistic regression describing the influence of a country-level predictor, such as the World Bank National Income Group (categories: low income, middle income, high income), on the joint outcomes of legume intensification. The response variable has 9 possible outcomes (win-win, win-lose, win-mix, mix-mix, mix-win, mix-lose, lose-lose, lose-mix, lose-win). 
+We include a random effect for "country" since each country might be represented multiple times in the dataset.
+
+The best way to model this in R is with the brms package (Bayesian hierarchical modeling approach) or the nnet package (without random effects).
+
+
+```{r import data, echo=FALSE}
+library(readr)
+
+getwd()
+datleg <- read_csv("C:/Users/cruzlopd/Dropbox/Natcomms_2.0/V2_Manuscript/Models_data/ModelData_MultinomReg_JointOutcomes_250415.csv")
+
+nrow(datleg)
+head(datleg)
+summary(datleg)
+names(datleg)
+```
+```{r libraries}
+# Install and load necessary packages
+#install.packages("brms")  # If not installed
+library(brms)
+
+#check_cmdstan_toolchain(fix = TRUE)
+
+#install.packages("cmdstanr", repos = c("https://mc-stan.org/r-packages/", getOption("repos")))
+library(cmdstanr)
+#cmdstanr::install_cmdstan()
+
+install.packages("nnet")
+library(nnet)
+
+library(ggplot2)
+```
+
+
+
+--------------------------------------------------------------------------------------------------
+## Fit random effects model with brms##
+--------------------------------------------------------------------------------------------------
+# Assume your data is in a dataframe called df
+# with columns: 
+#   - income_group (categorical predictor: low, middle, high income)
+#   - outcome (categorical response: 9 levels)
+#   - country (random effect)
+
+Why brms?
+Handles random effects ((1 | country))
+Uses multinomial logistic regression (family = categorical())
+Bayesian approach provides better uncertainty estimation and handles small sample sizes better.
+
+Note: if  brm() model is stuck at "Start sampling", it's usually due to:
+-Insufficient memory or CPU resources
+-Poor initialization (divergences, bad priors)
+-Too many iterations or chains running in parallel
+
+The default Stan backend (rstan) can be slow. Switching to CmdStan speeds up sampling:
+```{r cmdstan}
+# Check CmdStanR package is working
+install_cmdstan()
+
+#ensure you have a suitable C++ toolchain. You can check this by running
+check_cmdstan_toolchain()
+```
+
+##########################################
+## Base Model - Intervention Lead ##
+##########################################
+```{r brms1}
+datleg$random.effect2 <- as.factor(datleg$random.effect2)
+levels(datleg$random.effect2)
+
+datleg$joint.outcome <- as.factor(datleg$joint.outcome)
+levels(datleg$joint.outcome)
+
+
+# check which parameters can have priors
+default_prior(joint.outcome ~ Lead + (1 | random.effect2),
+             data = datleg, family = categorical())
+
+
+# Set informative priors (need to be set for each outcome category)
+priors1 <- c(
+    # Priors for intercepts (category-specific)
+    prior(normal(0, 5), class = "Intercept", dpar = "muLoseMix"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muLoseWin"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muMixLose"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muMixMix"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muMixWin"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muWinLose"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muWinMix"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muWinWin"),
+    
+    # Priors for fixed effects (category-specific)
+    prior(normal(0, 3), class = "b", dpar = "muLoseMix"),
+    prior(normal(0, 3), class = "b", dpar = "muLoseWin"),
+    prior(normal(0, 3), class = "b", dpar = "muMixLose"),
+    prior(normal(0, 3), class = "b", dpar = "muMixMix"),
+    prior(normal(0, 3), class = "b", dpar = "muMixWin"),
+    prior(normal(0, 3), class = "b", dpar = "muWinLose"),
+    prior(normal(0, 3), class = "b", dpar = "muWinMix"),
+    prior(normal(0, 3), class = "b", dpar = "muWinWin"),
+
+    # Prior for random effect standard deviation
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muLoseMix"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muLoseWin"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muMixLose"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muMixMix"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muMixWin"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muWinLose"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muWinMix"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muWinWin")
+  )
+
+# Fit a multinomial logistic regression with a random intercept for "country"
+# or an ordinal regression (if we assumed outcomes are ordered)
+Bmod.joint.Lead <- brm(
+  formula = joint.outcome ~ Lead + (1 | random.effect2),  # Fixed effect of income_group, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  #prior = priors1, #Priors for multinomial logistic regression
+  #family = cumulative("logit"),  # Ordinal logistic regression
+  #prior = priors2,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.95, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+
+#Note: Sampling Information:
+#4 chains with 2000 iterations each.
+#1000 warmup samples.
+#A total of 4000 post-warmup samples.
+
+# Summarize results
+summary(Bmod.joint.Lead)
+
+#Write output to file
+sink("Bmod.joint.Lead_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.Lead))      # Print summary
+sink()                                # Reset output back to console
+```
+
+### Interpretation of Model Outputs - Influence of WB income group on Joint Outcomes ###
+This model is a multinomial logistic regression (categorical family) fitted using brms, with random intercepts for random.effect2 (12 levels). The primary predictor of interest is Lead (likely a binary variable, with levels like "Researcher" and a reference category).
+
+Key Takeaways from the Output
+1. Model Structure
+The outcome variable (joint.outcome) has multiple categories.
+The model estimates the log-odds (logit scale) of one outcome relative to a baseline.
+Eight equations are modeled (muLoseMix, muLoseWin, etc.), each representing a possible outcome compared to the baseline.
+2. Random Effects (Intercepts)
+Each outcome category has a standard deviation for the random intercept across random.effect2. Higher values indicate more variation between groups:
+
+sd(muWinLose_Intercept) = 2.00 (highest) → suggests substantial between-group variability for this outcome.
+sd(muWinMix_Intercept) = 0.37 (lowest) → less variation across groups for this outcome.
+3. Fixed Effects
+Intercepts
+Represent the log-odds of each category when Lead = 0 (reference category).
+The highest values:
+muWinWin_Intercept = 3.27 → this category has the highest baseline log-odds.
+muWinMix_Intercept = 2.96 → another strong category.
+The lowest:
+muLoseMix_Intercept = -1.51 → suggests this category is less likely by default.
+Effect of LeadResearcher
+Coefficients represent how the log-odds change when Lead = Researcher (relative to baseline).
+Most estimates are centered around 0 with wide uncertainty (credible intervals include 0).
+The most notable shift:
+muLoseMix_LeadResearcher = 0.74 → weak evidence that the "LoseMix" category is more likely for Researchers.
+muMixLose_LeadResearcher = -0.87 → weak evidence that "MixLose" is less likely for Researchers.
+4. Model Diagnostics
+Rhat = 1.00 or 1.01 → Indicates good convergence.
+Bulk_ESS and Tail_ESS → Sufficiently large for reliable estimates.
+Conclusion
+No strong evidence that Lead (Researcher status) significantly impacts the outcome distribution.
+Some weak indications that certain outcomes (like "LoseMix" or "MixLose") may be affected.
+Large uncertainty in estimates suggests more data or a different model specification might be needed to detect an effect.
+
+###Plot influence of "Lead" on probability of joint outcomes###
+```{r}
+library(brms)
+library(bayesplot)
+library(ggplot2)
+library(posterior)
+library(viridis)  # Load viridis package
+
+### 1. Plot Regression Coefficients with mcmc_areas ###
+# Extract posterior samples using as_draws_df
+posterior_samples <- as_draws_df(Bmod.joint.Lead)
+# Select relevant parameters
+selected_params <- grep("LeadResearcher", names(posterior_samples), value = TRUE)
+# Convert the subset to a regular data frame
+posterior_subset <- as.data.frame(posterior_samples[, selected_params])
+# Density plot of the posterior distributions
+mcmc_areas(posterior_subset, prob = 0.9) +
+  ggtitle("Posterior Distributions of LeadResearcher Coefficients") +
+  theme_minimal()  # Removes gray background
+
+
+### 2. Plot Fixed Effects Estimates with Confidence Intervals - X axis Researcher/Farmer ###
+# Generate the conditional effects plot
+effects_plot <- plot(conditional_effects(Bmod.joint.Lead, categorical = TRUE), plot = FALSE)
+
+effects_plot[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+```
+
+##########################################
+## Model 1 - World Bank Income Category ##
+##########################################
+
+```{r brms1}
+# check which parameters can have priors
+default_prior(joint.outcome ~ WB.Nat.Inc.Group + (1 | random.effect2),
+             data = datleg, family = categorical())
+
+datleg$random.effect2 <- as.factor(datleg$random.effect2)
+levels(datleg$random.effect2)
+
+# Set informative priors (need to be set for each outcome category)
+priors1 <- c(
+    # Priors for intercepts (category-specific)
+    prior(normal(0, 5), class = "Intercept", dpar = "muLoseMix"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muLoseWin"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muMixLose"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muMixMix"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muMixWin"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muWinLose"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muWinMix"),
+    prior(normal(0, 5), class = "Intercept", dpar = "muWinWin"),
+    
+    # Priors for fixed effects (category-specific)
+    prior(normal(0, 3), class = "b", dpar = "muLoseMix"),
+    prior(normal(0, 3), class = "b", dpar = "muLoseWin"),
+    prior(normal(0, 3), class = "b", dpar = "muMixLose"),
+    prior(normal(0, 3), class = "b", dpar = "muMixMix"),
+    prior(normal(0, 3), class = "b", dpar = "muMixWin"),
+    prior(normal(0, 3), class = "b", dpar = "muWinLose"),
+    prior(normal(0, 3), class = "b", dpar = "muWinMix"),
+    prior(normal(0, 3), class = "b", dpar = "muWinWin"),
+
+    # Prior for random effect standard deviation
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muLoseMix"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muLoseWin"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muMixLose"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muMixMix"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muMixWin"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muWinLose"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muWinMix"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "muWinWin")
+  )
+
+WB_order <- c("LIC", "LMIC", "UMIC", "HIC") # *Replace with your desired order*
+datleg$WB.Nat.Inc.Group.ordered <- factor(datleg$WB.Nat.Inc.Group, levels = WB_order, ordered = TRUE)  # Convert to ordered factor
+
+# Fit a multinomial logistic regression with a random intercept for "country"
+# or an ordinal regression (if we assumed outcomes are ordered)
+Bmod.joint.WBinc <- brm(
+  formula = joint.outcome ~ WB.Nat.Inc.Group.ordered + (1 | random.effect2),  # Fixed effect of income_group, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1, #Priors for multinomial logistic regression
+  #family = cumulative("logit"),  # Ordinal logistic regression
+  #prior = priors2,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+
+#Note: Sampling Information:
+#4 chains with 2000 iterations each.
+#1000 warmup samples.
+#A total of 4000 post-warmup samples.
+
+# Summarize results
+summary(Bmod.joint.WBinc)
+
+#Write output to file
+sink("Bmod_joint_WBinc_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.WBinc))      # Print summary
+sink()                                # Reset output back to console
+
+##See if looking at overall outcomes (just positive, tradeoff or negative) changes model##
+default_prior(overall.outcome ~ WB.Nat.Inc.Group.ordered + (1 | random.effect2),
+             data = datleg, family = categorical())
+
+
+priors2 <- c(
+    # Priors for intercepts (category-specific)
+    prior(normal(0, 5), class = "Intercept", dpar = "mutradeoff"),
+    prior(normal(0, 5), class = "Intercept", dpar = "mupositive"),
+    
+    # Priors for fixed effects (category-specific)
+    prior(normal(0, 3), class = "b", dpar = "mutradeoff"),
+    prior(normal(0, 3), class = "b", dpar = "mupositive"),
+
+    # Prior for random effect standard deviation
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "mutradeoff"),
+    prior(student_t(3, 0, 2.5), class = "sd", group = "random.effect2", dpar = "mupositive")
+  )
+
+
+Bmod.overall.WBinc <- brm(
+  formula = overall.outcome ~ WB.Nat.Inc.Group.ordered + (1 | random.effect2),  # Fixed effect of income_group, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors2, #Priors for multinomial logistic regression
+  #family = cumulative("logit"),  # Ordinal logistic regression
+  #prior = priors2,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+summary(Bmod.overall.WBinc)
+
+#Write output to file
+sink("Bmod.joint.overall.WBinc.txt")  # Redirect output to file
+print(summary(Bmod.overall.WBinc))      # Print summary
+sink()                                # Reset output back to console
+```
+
+### Interpretation of Model Outputs - Influence of WB income group on Joint Outcomes ###
+📌 Interpretation of Model Output
+Your model is a multinomial logistic regression (categorical() family) where joint.outcome is predicted by WB.Nat.Inc.Group.ordered (ordered World Bank national income group), with random intercepts for random.effect2. Here’s a structured breakdown:
+________________________________________
+1️⃣ Random Effects (Between-Group Variability)
+The random effect random.effect2 has 12 levels, capturing group-level variation in intercepts.
+•	Large sd values (e.g., sd(muWinLose_Intercept) = 3.23) indicate high variability between groups in predicting WinLose.
+•	Smaller sd values (e.g., sd(muWinMix_Intercept) = 0.44) suggest that WinMix is less affected by group differences.
+➡ Interpretation: Some categories of joint.outcome show more variation across groups than others.
+________________________________________
+2️⃣ Fixed Effects (Regression Coefficients)
+Each row represents a log-odds coefficient for the given outcome category, relative to a baseline category (likely LoseLose, though not explicitly shown).
+🔹 Intercepts (mu*_Intercept)
+These represent the baseline log-odds of each outcome when WB.Nat.Inc.Group.ordered = 0 (possibly the lowest income group).
+•	muWinWin_Intercept = 3.67: The WinWin outcome has the highest baseline odds.
+•	muLoseMix_Intercept = -2.70: The LoseMix outcome has low baseline odds.
+🔹 Effects of WB.Nat.Inc.Group.ordered
+The coefficients (mu*_WB.Nat.Inc.Group.ordered.X) show how each increase in national income group affects the log-odds of an outcome.
+•	L, Q, and C likely represent linear, quadratic, and cubic components of the ordered predictor.
+Key Findings:
+1.	No Strong Effects: Many 95% confidence intervals (CIs) include 0, meaning the effects are not statistically strong.
+2.	Some Notable Trends:
+o	muLoseMix_WB.Nat.Inc.Group.ordered.C = 2.47: Higher income groups might increase odds of LoseMix (but CI includes 0).
+o	muMixWin_Intercept = 2.44: MixWin has high odds overall, independent of income group.
+o	muWinMix_Intercept = 2.85: High-income groups might be associated with higher odds of WinMix, but effect varies across income levels.
+________________________________________
+3️⃣ Model Diagnostics (Convergence & Reliability)
+•	Rhat ≈ 1.00 ✅ Model converged well.
+•	Bulk_ESS and Tail_ESS are sufficiently large ✅ No efficiency issues.
+•	High Est.Errors & Wide CIs ⚠ Suggest uncertainty in some effects.
+________________________________________
+📊 Summary of Findings
+•	No strong evidence that WB.Nat.Inc.Group.ordered significantly predicts joint.outcome, as most CIs cross zero.
+•	WinWin has the highest baseline probability, followed by WinMix and MixWin.
+•	Some variation across groups (random effect), especially for WinLose.
+•	Effects of income group are not clearly significant but might suggest some trends.
+
+
+###Plot influence of "WB income group" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis WB Income Group ###
+# Generate the conditional effects plot
+effects_plot1 <- plot(conditional_effects(Bmod.joint.WBinc, categorical = TRUE), plot = FALSE)
+
+effects_plot1[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+    labs(y = "Probability", x = "World Bank Income Group") +
+  scale_x_discrete(limits = c("LIC", "LMIC", "UMIC", "HIC")) +  # Set custom order
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+
+```
+
+
+
+#Another kind of plot - barplot
+```{r plot1}
+#1. Posterior Predictive Checks
+#Check how well your model's predicted outcomes match the observed data.
+#pp_check(Bmod.joint.WBinc)
+#2. Conditional Effects Plots
+#Visualize how WB.Nat.Inc.Group and Lead affect the probability of different outcome categories.
+#conditional_effects(Bmod.joint.WBinc, categorical = TRUE, conditions = #data.frame(Lead = c("Farmer", "Researcher")))
+#This will generate plots for each predictor while holding others constant.
+
+#3. Fitted Values Across Predictors
+#You can compute and plot the fitted probabilities across levels of WB.Nat.Inc.Group and Lead:
+
+library(ggplot2)
+fitted_vals <- fitted(Bmod.joint.WBinc, summary = TRUE)
+df_fitted <- as.data.frame(fitted_vals)
+
+# Convert 3D array to long-format data frame
+df_fitted <- as.data.frame.table(fitted_vals)
+
+# Rename columns for clarity
+colnames(df_fitted) <- c("Observation", "Statistic", "Response", "Value")
+
+# Keep only the 'Estimate' values
+df_fitted <- df_fitted[df_fitted$Statistic == "Estimate", ]
+
+# Merge with the original data to recover predictors
+df_fitted <- cbind(df_fitted, WB.Nat.Inc.Group = rep(datleg$WB.Nat.Inc.Group, length(unique(df_fitted$Response))),
+                   Lead = rep(datleg$Lead, length(unique(df_fitted$Response))))
+
+# Plot - by lead
+pdf("plot_Bmod.joint.WBinc.Lead.pdf")  # Saves the plot as a PDF
+ggplot(df_fitted, aes(x = WB.Nat.Inc.Group, y = Value, fill = Lead)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~Response, scales = "free_y") +
+    labs(title = "Predicted Probabilities by Income Group and Intensification",
+         y = "Probability", x = "World Bank Income Group") +
+    theme_minimal()+
+  scale_x_discrete(limits = c("LIC", "LMIC", "UMIC", "HIC"))  # Set custom order
+dev.off()
+#This creates a bar chart showing how different levels of your predictors affect the predicted probabilities of the outcome categories.
+
+# Plot - by lead
+pdf("plot_Bmod.joint.WBinc.pdf")  # Saves the plot as a PDF
+ggplot(df_fitted, aes(x = WB.Nat.Inc.Group, y = Value)) +
+    geom_bar(stat = "identity", position = "dodge") +
+    facet_wrap(~Response, scales = "free_y") +
+    labs(title = "Predicted Probabilities by Income Group and Intensification",
+         y = "Probability", x = "World Bank Income Group") +
+    theme_minimal()+
+  scale_x_discrete(limits = c("LIC", "LMIC", "UMIC", "HIC"))  # Set custom order
+dev.off()
+
+
+# #Plot with CI
+# # Extract parameter names from the posterior samples
+# param_names <- dimnames(posterior_samples)[[3]]  # Extract parameter names from the 3rd dimension
+# 
+# # Check what parameters you're working with, here I assume something like muLoseMix, muLoseWin, etc.
+# head(param_names)
+# 
+# # Calculate standard errors by computing the standard deviation across the chains and iterations
+# std_errors <- apply(posterior_samples, 3, sd)  # 3rd dimension represents parameters
+# 
+# # Match the parameters in df_fitted to the standard errors: Assuming df_fitted needs a column for the specific model parameter
+# head(std_errors)
+# df_fitted$StdError <- std_errors[match(df_fitted$Response, param_names)]
+# head(df_fitted)
+# 
+# # Calculate 95% CI (using z-score for normal distribution)
+# z_score <- 1.96  # 95% confidence interval
+# df_fitted$CI_lower <- df_fitted$Value - z_score * df_fitted$StdError
+# df_fitted$CI_upper <- df_fitted$Value + z_score * df_fitted$StdError
+# 
+# pdf("plot_Bmod.joint.WBinc_withCI.pdf")  # Saves the plot as a PDF
+# ggplot(df_fitted, aes(x = WB.Group2, y = Value, fill = Lead)) +
+#     geom_bar(stat = "identity", position = "dodge", color = "black", show.legend = FALSE) +
+#     geom_errorbar(aes(ymin = CI_lower, ymax = CI_upper), position = position_dodge(width = 0.9), width = 0.25) + 
+#     facet_wrap(~Response, scales = "free_y") +
+#     labs(title = "Predicted Probabilities by Income Group and Intensification",
+#          y = "Probability", x = "World Bank Income Group") +
+#     theme_minimal()
+# dev.off()
+```
+
+##########################################
+## Model 2 - Human Development Index  ##
+#########################################
+2a. HDI1990
+```{r brmsHDI1990}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept
+
+Bmod.joint.HDI1990 <- brm(
+  formula = joint.outcome ~ HDI1990 + (1 | random.effect2),  # Fixed effect of income_group, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1, #Priors for multinomial logistic regression
+  #family = cumulative("logit"),  # Ordinal logistic regression
+  #prior = priors2,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+#Note: Sampling Information:
+#4 chains with 2000 iterations each.
+#1000 warmup samples.
+#A total of 4000 post-warmup samples.
+
+# Summarize results
+summary(Bmod.joint.HDI1990)
+
+
+#Write output to file
+sink("Bmod.joint.HDI1990_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.HDI1990))      # Print summary
+sink()                                # Reset output back to console
+```
+
+### Interpretation of Model Outputs - Influence of HDI1990 on Joint Outcomes ###
+Model Setup
+Outcome: joint.outcome (9 categories: "LoseMix", "LoseWin", "MixLose", etc.)
+
+Predictor: HDI1990
+
+Random effect: 1 | random.effect2 (group-level intercept for each of 12 groups)
+
+Reference category: Not shown, but brms typically uses the first factor level as the baseline (e.g., "Lose-Lose" if that's your first level). All other categories are interpreted relative to the reference.
+
+📊 1. Fixed Effects: HDI1990
+Each line like muWinWin_HDI1990 shows the effect of HDI1990 on the log-odds of being in that category vs. the reference category.
+
+Outcome	Estimate	95% CI	Interpretation
+muWinWin_HDI1990	-0.05	[-3.49, 3.11]	No clear effect — the CI crosses 0 widely.
+muWinMix_HDI1990	2.78	[-0.46, 6.46]	Positive trend — weak evidence that higher HDI increases odds of Win-Mix
+muMixWin_HDI1990	2.04	[-1.32, 5.47]	Positive but uncertain effect
+...	...	...	...
+✅ Interpretation:
+None of the HDI effects are statistically precise, as all 95% CIs include 0, meaning we don't have strong evidence for HDI significantly predicting outcome category. But some show positive trends worth further exploration (e.g., WinMix and MixWin).
+
+🧠 2. Intercepts
+Intercepts represent baseline log-odds for each outcome relative to the reference category, when HDI1990 = 0.
+
+Notable:
+
+Outcome	Intercept	95% CI
+muWinWin	3.46	[1.64, 5.55]
+muMixMix	2.05	[-0.27, 4.22]
+muLoseMix	-0.77	[-4.89, 2.43]
+✅ Interpretation:
+Win-Win is significantly more likely than the reference category. Other outcomes show varying levels of relative likelihood.
+
+🌐 3. Random Effects
+These reflect how much variability there is across random.effect2 groups (e.g., different regions or contexts).
+
+Outcome	SD (random intercept)	Interpretation
+LoseMix	2.24	High variability across groups
+WinWin	0.95	Moderate variability
+WinMix	0.69	Lower variability
+✅ Suggests some outcome categories vary a lot by group, especially LoseMix.
+
+📌 4. Diagnostics (Rhat, ESS)
+Rhat = 1.00: ✅ All parameters converged.
+
+ESS (Effective Sample Size): ✅ All are large enough for stable estimates (>400 generally good).
+
+🧠 In Summary
+This model estimates how HDI1990 relates to the odds of different outcome categories (vs. a reference one).
+
+None of the HDI effects are statistically clear, but WinMix and MixWin show possible positive associations with higher HDI.
+
+WinWin is strongly more likely than the reference outcome overall.
+
+There’s substantial variation across groups in some outcomes (especially LoseMix).
+
+
+
+
+###Plot influence of "HDI1990" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HDI1990 ###
+# Generate the conditional effects plot
+effects_plot2 <- plot(conditional_effects(Bmod.joint.HDI1990, categorical = TRUE), plot = FALSE)
+
+effects_plot2[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+```{r plotHDI1990}
+# Get posterior predictions
+predictions <- posterior_predict(Bmod.joint.HDI1990, newdata = datleg)
+
+# Calculate the predicted probabilities for each outcome category
+# This will be a matrix of probabilities, one for each observation and outcome category
+pred_probs <- apply(predictions, 2, function(x) table(factor(x, levels = levels(datleg$joint.outcome))) / length(x))
+
+# Create a data frame with predicted probabilities for plotting
+pred_df <- as.data.frame(t(pred_probs))
+pred_df$HDI1990 <- rep(datleg$HDI1990, each = nrow(pred_df) / length(datleg$HDI1990))  # Add HDI1990 to the data frame
+pred_df$Lead <- rep(datleg$Lead, each = nrow(pred_df) / length(datleg$Lead))  # Add Lead
+
+# Plot
+pdf("plot_Bmod.joint.HDI1990.pdf")  # Saves the plot as a PDF
+ggplot(pred_df, aes(x = HDI1990, y = Freq, color = joint.outcome, group = joint.outcome)) +
+  geom_line() +  # Plot a line for each outcome category
+  facet_wrap(~Lead) +  # Create separate plots for each level of Lead
+  labs(x = "HDI1990", y = "Predicted Probability") +
+  theme_minimal() +
+  theme(legend.position = "bottom")
+#This creates a bar chart showing how different levels of your predictors affect the predicted probabilities of the outcome categories.
+```
+
+2b. HDIav
+###Now try HDIav###
+```{r brmsHDIav}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept
+
+Bmod.joint.HDIav <- brm(
+  formula = joint.outcome ~ HDIav + (1 | random.effect2),  # Fixed effect of income_group, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1, #Priors for multinomial logistic regression
+  #family = cumulative("logit"),  # Ordinal logistic regression
+  #prior = priors2,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+#Note: Sampling Information:
+#4 chains with 2000 iterations each.
+#1000 warmup samples.
+#A total of 4000 post-warmup samples.
+
+# Summarize results
+summary(Bmod.joint.HDIav)
+
+#Write output to file
+sink("Bmod.joint.HDIav_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.HDIav))      # Print summary
+sink()                                # Reset output back to console
+```
+
+### Interpretation of Model Outputs - Influence of HDIav on Joint Outcomes ###
+📌 Interpretation of Model Output
+This is a multinomial logistic regression model predicting joint.outcome using HDIav (presumably an average Human Development Index measure) with random intercepts for random.effect2.
+This model estimates how HDIav influences the probability of different outcome categories.
+________________________________________
+1️⃣ Random Effects (Variability Across Groups)
+•	The random intercept standard deviations (sd(mu*_Intercept)) capture variability across the 12 levels of random.effect2.
+•	Higher values indicate greater variation across groups.
+o	sd(muLoseMix_Intercept) = 2.09 (high variability)
+o	sd(muWinLose_Intercept) = 1.82 (high variability)
+o	sd(muWinMix_Intercept) = 0.61 (lower variability)
+•	Some outcomes (e.g., LoseMix and WinLose) vary more across groups, while others (e.g., WinMix) are more consistent.
+➡ Interpretation: Certain outcomes are more influenced by group-level effects (random.effect2), while others remain stable across groups.
+________________________________________
+2️⃣ Fixed Effects (Regression Coefficients)
+🔹 Intercepts (mu*_Intercept)
+•	Represent the baseline log-odds of each outcome when HDIav = 0.
+•	Positive intercepts indicate an outcome is more likely at baseline:
+o	muWinWin_Intercept = 3.48 (most likely outcome in baseline scenario)
+o	muLoseWin_Intercept = 2.08
+o	muMixMix_Intercept = 1.77
+•	Negative intercepts suggest the outcome is less common at baseline:
+o	muMixLose_Intercept = -0.92
+➡ Interpretation: In the absence of HDIav effects, WinWin is the most likely outcome, while MixLose is less probable.
+________________________________________
+🔹 Effects of HDIav
+These coefficients indicate how HDIav influences the log-odds of each outcome.
+Key Findings:
+•	Strongest positive effects:
+o	muMixWin_HDIav = 2.82 (95% CI: [-0.89, 6.59]) ⚠ (CI is wide)
+o	muWinMix_HDIav = 2.62 (95% CI: [-0.88, 6.54]) ⚠
+•	Strongest negative effects:
+o	muLoseMix_HDIav = -2.17 (95% CI: [-7.40, 2.87]) ⚠
+o	muLoseWin_HDIav = -1.96 (95% CI: [-6.57, 2.47]) ⚠
+•	Non-significant effects (CIs include 0, meaning weak or no effect):
+o	muWinWin_HDIav = -0.10 (95% CI: [-3.82, 3.21]) ❌
+o	muMixMix_HDIav = -0.10 (95% CI: [-4.19, 4.10]) ❌
+o	muWinLose_HDIav = -0.17 (95% CI: [-5.19, 4.59]) ❌
+➡ Interpretation:
+•	Higher HDIav increases the likelihood of MixWin and WinMix, suggesting that higher human development is linked to these outcomes.
+•	Higher HDIav decreases the likelihood of LoseMix and LoseWin, implying that higher human development reduces the probability of losing outcomes.
+•	Other categories show uncertain effects.
+________________________________________
+3️⃣ Model Diagnostics (Convergence & Reliability)
+•	Rhat ≈ 1.00 for all parameters ✅ Model converged well.
+•	Effective Sample Sizes (ESS) are mostly high ✅ Reliable estimates.
+•	Some wide credible intervals (CIs) ⚠ suggest uncertainty in estimating certain effects.
+________________________________________
+📊 Summary of Findings
+1.	Higher HDIav is associated with increased probability of MixWin and WinMix.
+2.	Higher HDIav reduces the probability of LoseMix and LoseWin. 
+3.	Some outcomes (WinWin, MixMix, WinLose) do not show clear associations with HDIav.
+4.	Substantial variability exists across groups (random.effect2).
+5.	The model converged well, but some estimates have high uncertainty (wide CIs).
+
+
+
+
+###Plot influence of "HDIav" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HDIav ###
+# Generate the conditional effects plot
+effects_plot2b <- plot(conditional_effects(Bmod.joint.HDIav, categorical = TRUE), plot = FALSE)
+
+effects_plot2b[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+2c. HDI2022
+###Now try HDI2022###
+```{r brmsHDI2022}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept
+
+Bmod.joint.HDI2022 <- brm(
+  formula = joint.outcome ~ HDI2022 + (1 | random.effect2),  # Fixed effect of income_group, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1, #Priors for multinomial logistic regression
+  #family = cumulative("logit"),  # Ordinal logistic regression
+  #prior = priors2,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+#Note: Sampling Information:
+#4 chains with 2000 iterations each.
+#1000 warmup samples.
+#A total of 4000 post-warmup samples.
+
+# Summarize results
+summary(Bmod.joint.HDI2022)
+
+#Write output to file
+sink("Bmod.joint.HDI2022_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.HDI2022))      # Print summary
+sink()                                # Reset output back to console
+```
+
+
+###Plot influence of "HDI2022" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HDIav ###
+# Generate the conditional effects plot
+effects_plot2c <- plot(conditional_effects(Bmod.joint.HDI2022, categorical = TRUE), plot = FALSE)
+
+effects_plot2c[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+
+#############################################
+## Model 3 - Sustainable Development Score  ##
+#############################################
+```{r brm3}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.SDG2000 <- brm(
+  formula = joint.outcome ~ BackdateSDGIndex2000 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.SDG2000)
+
+#Write outputs to file
+sink("Bmod.joint.SDG2000_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.SDG2000))      # Print summary
+sink()                                # Reset output back to console
+
+```
+
+### Interpretation of Model Outputs - Influence of SDG2000 on Joint Outcomes ###
+📌 Interpretation of Model Output
+This is a multinomial logistic regression (categorical() family) where joint.outcome is predicted by BackdateSDGIndex2000, with random intercepts for random.effect2. The model attempts to assess how Sustainable Development Goal (SDG) Index scores from the year 2000 affect outcome probabilities.
+________________________________________
+1️⃣ Random Effects (Group-Level Variability)
+The random intercepts capture variation across the 12 levels of random.effect2.
+•	Higher sd values (e.g., sd(muLoseMix_Intercept) = 2.13) indicate substantial variation across groups.
+•	Lower sd values (e.g., sd(muWinMix_Intercept) = 0.56) suggest that WinMix is more stable across groups.
+➡ Interpretation: Some outcomes (e.g., LoseMix, WinLose) vary significantly across groups, while others (e.g., WinMix) do not.
+________________________________________
+2️⃣ Fixed Effects (Regression Coefficients)
+🔹 Intercepts (mu*_Intercept)
+These represent the baseline log-odds of each outcome when BackdateSDGIndex2000 = 0.
+•	All intercepts are negative (e.g., muMixWin_Intercept = -4.51), indicating that the reference category (likely LoseLose) is the most probable outcome at SDGIndex2000 = 0.
+•	Wide confidence intervals (e.g., [-13.83, 11.54] for muLoseMix_Intercept) suggest high uncertainty in the baseline probabilities.
+➡ Interpretation: The model struggles to precisely estimate baseline odds, likely due to limited data.
+🔹 Effects of BackdateSDGIndex2000
+These coefficients indicate how changes in BackdateSDGIndex2000 affect the log-odds of each outcome relative to the baseline.
+•	All coefficients are close to 0, with narrow ranges (e.g., muLoseMix_BackdateSDGIndex2000 = -0.00, 95% CI [-0.25, 0.24]).
+•	CIs for all effects include 0, suggesting that BackdateSDGIndex2000 has no significant impact on the outcome probabilities.
+➡ Interpretation: There is no strong evidence that SDG Index scores from 2000 influence joint.outcome.
+________________________________________
+3️⃣ Model Diagnostics (Convergence & Reliability)
+•	Rhat ≈ 1.00 ✅ Model converged well.
+•	Effective Sample Sizes (ESS) are reasonable ✅ No serious efficiency issues.
+•	Large Estimation Errors & Wide CIs ⚠ Suggests high uncertainty in parameter estimates.
+________________________________________
+📊 Summary of Findings
+•	No strong effect of BackdateSDGIndex2000 on joint.outcome.
+•	Baseline outcome probabilities are uncertain, with wide CIs.
+•	Significant variation across groups (random.effect2), particularly for LoseMix and WinLose.
+•	The model likely lacks enough data or predictive power to detect meaningful effects.
+
+
+###Plot influence of "BackdateSDGIndex2000" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis SDG2000 ###
+# Generate the conditional effects plot
+effects_plot3 <- plot(conditional_effects(Bmod.joint.SDG2000, categorical = TRUE), plot = FALSE)
+
+effects_plot3[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+```{r brm3}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.SDGav <- brm(
+  formula = joint.outcome ~ SDGav + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.SDGav)
+
+#Write outputs to file
+sink("Bmod.joint.SDGav_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.SDGav))      # Print summary
+sink()                                # Reset output back to console
+
+```
+
+###Plot SDGav
+```{r plot}
+###Plot influence of "SDGav" on probability of joint outcomes###
+
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis SDGav ###
+# Generate the conditional effects plot
+effects_plotx <- plot(conditional_effects(Bmod.joint.SDGav, categorical = TRUE), plot = FALSE)
+
+effects_plotx[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+###Plot influence of "SDG2023" on probability of joint outcomes###
+
+```{r brm3c}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.SDG2023 <- brm(
+  formula = joint.outcome ~ SDG2023 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.SDG2023)
+
+#Write outputs to file
+sink("Bmod.joint.SDG2023_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.SDG2023))      # Print summary
+sink()                                # Reset output back to console
+
+```
+
+
+###Plot SDG2023
+```{r plotSDG2023}
+###Plot influence of "SDGav" on probability of joint outcomes###
+
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis SDGav ###
+# Generate the conditional effects plot
+effects_plot3c <- plot(conditional_effects(Bmod.joint.SDG2023, categorical = TRUE), plot = FALSE)
+
+effects_plot3c[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+  
+
+
+#############################################
+## Model 4 - Human Footprint  ##
+#############################################
+```{r brm4}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.hfp2000 <- brm(
+  formula = joint.outcome ~ hfp_2000 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.hfp2000)
+
+#Write outputs to file
+sink("Bmod.joint.hfp2000_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.hfp2000))      # Print summary
+sink()                                # Reset output back to console
+
+```
+
+### Interpretation of Model Outputs - Influence of HPF2000 on Joint Outcomes ###
+📌 Interpretation of Model Output
+This is a multinomial logistic regression model predicting joint.outcome using hfp_2000 with random intercepts for random.effect2. The model estimates how hfp_2000 (some predictor from the year 2000) influences the probability of different outcome categories.
+________________________________________
+1️⃣ Random Effects (Variability Across Groups)
+•	The random intercept standard deviations (sd(mu*_Intercept)) measure variation across the 12 levels of random.effect2.
+•	Larger values indicate more variation across groups. For example:
+o	sd(muLoseMix_Intercept) = 2.16 (high variability)
+o	sd(muWinMix_Intercept) = 0.36 (low variability)
+•	Some categories, like LoseMix and WinLose, show greater variation across groups than others, such as WinMix.
+➡ Interpretation: Certain outcomes vary significantly across groups (random.effect2), while others are more stable.
+________________________________________
+2️⃣ Fixed Effects (Regression Coefficients)
+🔹 Intercepts (mu*_Intercept)
+•	Represent the baseline log-odds of each outcome when hfp_2000 = 0.
+•	Some intercepts are negative, indicating these outcomes are less likely by default (e.g., muLoseMix_Intercept = -2.47).
+•	Others are positive, suggesting they are more probable in the baseline condition (e.g., muWinMix_Intercept = 1.86).
+➡ Interpretation: Certain outcomes (WinWin, WinMix) are more likely at baseline, while others (LoseMix, WinLose) are less frequent.
+________________________________________
+🔹 Effects of hfp_2000
+These coefficients measure how hfp_2000 affects the log-odds of each outcome.
+Key Findings:
+•	Positive and significant effects:
+o	muLoseWin_hfp_2000 = 0.13 (95% CI: [0.03, 0.23])
+o	muWinLose_hfp_2000 = 0.11 (95% CI: [0.01, 0.21])
+o	muMixMix_hfp_2000 = 0.09 (95% CI: [0.00, 0.18])
+•	Non-significant effects (CIs include 0, suggesting no strong impact):
+o	muLoseMix_hfp_2000 = 0.06 (95% CI: [-0.05, 0.18])
+o	muMixLose_hfp_2000 = 0.02 (95% CI: [-0.10, 0.14])
+o	muWinMix_hfp_2000 = 0.06 (95% CI: [-0.02, 0.15])
+➡ Interpretation:
+•	Higher values of hfp_2000 increase the likelihood of outcomes like LoseWin, WinLose, and MixMix. 
+•	For other outcomes, the effect is weak or uncertain.
+
+
+###Plot influence of "human footprint index" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HFP2000 ###
+# Generate the conditional effects plot
+effects_plot4 <- plot(conditional_effects(Bmod.joint.hfp2000, categorical = TRUE), plot = FALSE)
+
+effects_plot4[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+##Now run the model with data for today (countries that have had lots of impacts)
+```{r brm4b}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.hfp2018 <- brm(
+  formula = joint.outcome ~ hfp_2018 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.hfp2018)
+
+#Write outputs to file
+sink("Bmod.joint.hfp2018_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.hfp2018))      # Print summary
+sink()                                # Reset output back to console
+
+```
+
+### Interpretation of Model Outputs - Influence of HPF2018 on Joint Outcomes ###
+Model Interpretation: The Effect of hfp_2018 on joint.outcome
+This is a categorical model with logit link functions, analyzing how hfp_2018 (a predictor) influences different categorical outcomes (joint.outcome). The model includes a random effect (random.effect2), accounting for variations across 12 levels.
+
+Key Takeaways
+1. Random Effects (random.effect2)
+The standard deviations (SDs) of the random effects suggest variability across groups:
+
+The largest variation is seen in muLoseMix_Intercept (SD = 2.10) and muWinLose_Intercept (SD = 1.75), indicating that these outcome categories exhibit more between-group variability.
+The lowest variability appears in muWinMix_Intercept (SD = 0.38), suggesting that this category is more stable across groups.
+2. Intercepts (mu*_Intercept)
+The intercepts represent the log-odds of each category when hfp_2018 = 0.
+Negative intercepts (e.g., muLoseMix_Intercept = -2.13, muLoseWin_Intercept = -2.02) indicate lower baseline probabilities for those categories.
+Positive intercepts (e.g., muWinWin_Intercept = 1.81, muWinMix_Intercept = 1.75) suggest these outcomes are relatively more common.
+3. Effect of hfp_2018 (Regression Coefficients)
+The coefficients of hfp_2018 indicate how increasing hfp_2018 affects the log-odds of each outcome:
+
+Significant Positive Effects:
+muLoseWin_hfp_2018 = 0.12 (0.03, 0.22) → As hfp_2018 increases, the probability of LoseWin increases.
+muMixMix_hfp_2018 = 0.09 (0.00, 0.18) → Higher hfp_2018 slightly favors MixMix outcomes.
+Negligible or Uncertain Effects:
+Most coefficients have small effects with confidence intervals spanning zero (e.g., muWinWin_hfp_2018 = 0.07 (-0.01, 0.15), muWinMix_hfp_2018 = 0.06 (-0.02, 0.14)).
+Interpretation: While hfp_2018 has some influence on LoseWin and MixMix, its effects on other categories are weak or uncertain.
+4. Model Convergence & Reliability
+𝑅
+ℎ
+𝑎
+𝑡
+Rhat values are all close to 1.00, indicating proper convergence.
+Bulk_ESS and Tail_ESS values are high, meaning sufficient effective samples for stable estimation.
+Overall Interpretation
+hfp_2018 positively affects some outcomes (LoseWin, MixMix), but its impact on others is minor or uncertain.
+There is notable between-group variation in some outcomes (LoseMix, WinLose).
+The model is well-converged and reliable.
+
+
+###Plot influence of "human footprint index" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HFP2018 (recent degradation) ###
+# Generate the conditional effects plot
+effects_plot4b <- plot(conditional_effects(Bmod.joint.hfp2018, categorical = TRUE), plot = FALSE)
+
+effects_plot4b[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+
+```{r brm4c}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.hfpav <- brm(
+  formula = joint.outcome ~ hfp_av + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.hfpav)
+
+#Write outputs to file
+sink("Bmod.joint.hfpav_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.hfpav))      # Print summary
+sink()                                # Reset output back to console
+
+```
+
+###Plot influence of "human footprint index" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HFPav (all degradation) ###
+# Generate the conditional effects plot
+effects_plot4b <- plot(conditional_effects(Bmod.joint.hfpav, categorical = TRUE), plot = FALSE)
+
+effects_plot4b[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+
+#############################################
+## Model 4c - Population ##
+#############################################
+```{r povp 1990}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+##1. Poverty Gap
+# Fit a multinomial logistic regression with a random intercept for "country"
+#standardise data
+datleg$Pop1990.trans <- sqrt(datleg$Pop1990)
+hist(datleg$Pop1990.trans)
+
+
+Bmod.joint.pop1990 <- brm(
+  formula = joint.outcome ~ Pop1990.trans + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.pop1990)
+
+#Write outputs to file
+sink("Bmod.joint.pop1990_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.pop1990))      # Print summary
+sink()                                # Reset output back to console
+```
+
+###Plot influence of "population" on probability of joint outcomes###
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals - X axis HFP2018 (recent degradation) ###
+# Generate the conditional effects plot
+effects_plot4c <- plot(conditional_effects(Bmod.joint.pop1990, categorical = TRUE), plot = FALSE)
+
+effects_plot4c[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+```
+
+
+
+#############################################
+## Model 5 - Poverty and Wealth Inequality ##
+#############################################
+Note: Poverty data come from 1990 or year of data calculation that is most closely aligned (ranging from 1988 to 1994)
+
+Notes on data from the World Bank
+1. poverty gap in 1990
+Data closest to 1990 were taken.
+Poverty Gap, percent $6.95: Poverty gap (2017 PPP) (% of poverty line under this)
+
+Note: Poverty Severity, 0 - 1 $6.95 = Poverty gap squared (2017 PPP)
+
+Notes on data from the World Inequality Database:
+2. p0p100 - Gender inequality
+This indicator is the Pre-tax labor income [pre-tax labor income ranking]: P0-100shareadultsfemale population
+The population group p0p100 refers to the entire distribution and is used for aggregate series for which there is no distribution available, and for economic series with no individual meaning such as price indices and exchange rates.
+
+3. p0p50
+Wealth or income share: p0p50 refers to the bottom 50% of the population
+
+4. p90p100
+Wealth or income share: these correspond to the income or wealth of the group, divided by the total for the whole population. For example, the income of the group p90p100 is the top 10% income share.
+
+5. p99p100
+Wealth or income share: these correspond to the income or wealth of the group, divided by the total for the whole population. For example, the income of the group p99p100 is the top 1% income share.
+
+6. Income inequality 2010
+From WID database
+
+7. Poverty severity in 1990
+Poverty Severity, 0 - 1 $6.95. Poverty gap squared (2017 PPP)
+
+
+8. WB.pov.headcount in 1990
+Poverty rate: Poverty Headcount Ratio at $6.85 a Day (backdated) - from World Bank PIP - poverty and inequality data are expressed in 2017 Purchasing Power Parity (PPP) prices.
+Poverty headcount ratio (2017 PPP) (% of population)
+Source: World Bank (2025), Poverty and Inequality Platform (version 20240627_2011_02_02_PROD) [data set]. pip.worldbank.org. Accessed on 2025-03-06
+
+9. WB.decile20 in 1990
+Income Share Held by Highest 20% - from World Bank PIP
+
+
+```{r povertybrm 1990}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+##1. Poverty Gap
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.povgap <- brm(
+  formula = joint.outcome ~ WB2017.povgap.1990 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.povgap)
+
+#Write outputs to file
+sink("Bmod.joint.povgap_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.povgap))      # Print summary
+sink()                                # Reset output back to console
+
+
+# 2. Gender gap poverty
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.p0p100 <- brm(
+  formula = joint.outcome ~ Equal.p0p100 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.p0p100)
+
+#Write outputs to file
+sink("Bmod.joint.p0p100_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.p0p100))      # Print summary
+sink()                                # Reset output back to console
+
+
+# 3. Equal.p0p50
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.Equal.p0p50 <- brm(
+  formula = joint.outcome ~ Equal.p0p50 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.Equal.p0p50)
+
+#Write outputs to file
+sink("Bmod.joint.Equal.p0p50_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.Equal.p0p50))      # Print summary
+sink()
+
+# 4. Equal.p90p100
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.Equal.p90p100 <- brm(
+  formula = joint.outcome ~ Equal.p90p100 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.Equal.p90p100)
+
+#Write outputs to file
+sink("Bmod.joint.Equal.p90p100_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.Equal.p90p100))      # Print summary
+sink()
+
+# 5. Equal.p99p100
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.Equal.p99p100 <- brm(
+  formula = joint.outcome ~ Equal.p99p100 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.Equal.p99p100)
+
+#Write outputs to file
+sink("Bmod.joint.Equal.p99p100_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.Equal.p99p100))      # Print summary
+sink()
+
+# 6. Income inequality
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.IneqInc2010 <- brm(
+  formula = joint.outcome ~ IneqInc2010 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.IneqInc2010)
+
+#Write outputs to file
+sink("Bmod.joint.IneqInc2010_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.IneqInc2010))      # Print summary
+sink()
+
+# 7. Poverty severity
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.povseverity <- brm(
+  formula = joint.outcome ~ WB2017.povseverity.1990 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.povseverity)
+
+#Write outputs to file
+sink("Bmod.joint.povseverity_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.povseverity))      # Print summary
+sink()
+
+# 8. Poverty headcount: Poverty rate, percent $6.95 - Poverty headcount ratio (2017 PPP) (% of population)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.povheadcount1990 <- brm(
+  formula = joint.outcome ~ WB2017.pov.headcount.1990 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.povheadcount1990)
+
+#Write outputs to file
+sink("Bmod.joint.povheadcount1990_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.povheadcount1990))      # Print summary
+sink()
+
+# 9. Income Share Held by Highest 20%
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.IncShareTop20.1990 <- brm(
+  formula = joint.outcome ~ WB2017.decile20.1990 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.IncShareTop20.1990)
+
+#Write outputs to file
+sink("Bmod.joint.IncShareTop20.1990_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.IncShareTop20.1990))      # Print summary
+sink()
+
+```
+
+### Interpretation of Model Outputs - Influence of poverty gap on Joint Outcomes ###
+Model Interpretation: The Effect of poverty_gap on joint.outcome
+This is a categorical model with a logit link function, where the outcome (joint.outcome) is influenced by poverty_gap, with a random effect (random.effect2) included to account for variations across 12 levels.
+
+1. Random Effects (random.effect2)
+The standard deviations of the random effects suggest that variability across groups is highest in:
+muLoseMix_Intercept (SD = 2.11) → Indicates significant variation between groups in this category.
+muWinLose_Intercept (SD = 1.72) → Suggests different groups experience WinLose differently.
+The least variability is observed in muWinMix_Intercept (SD = 0.41), indicating this outcome is more consistent across groups.
+2. Intercepts (mu*_Intercept)
+Intercepts represent the log-odds of each outcome when poverty_gap = 0.
+Positive Intercepts (More Likely Outcomes at Baseline):
+muWinWin_Intercept = 3.38 and muWinMix_Intercept = 3.36 → These categories have the highest baseline log-odds.
+muMixWin_Intercept = 2.32, muMixMix_Intercept = 1.54 → Also relatively frequent outcomes.
+Negative Intercepts (Less Likely Outcomes at Baseline):
+muLoseMix_Intercept = -1.16, muMixLose_Intercept = -0.37, muWinLose_Intercept = -0.18 → These categories occur less frequently.
+3. Effect of poverty_gap (Regression Coefficients)
+The regression coefficients indicate how increasing poverty_gap affects the log-odds of each category.
+
+Uncertain or Weak Effects (Wide Confidence Intervals)
+
+Most coefficients have very large standard errors and confidence intervals that span zero.
+For example:
+muLoseMix_poverty_gap = -0.28 (-5.11, 4.48)
+muMixLose_poverty_gap = -0.30 (-5.45, 4.64)
+muLoseWin_poverty_gap = 0.24 (-3.99, 4.29)
+These results indicate that poverty_gap has no clear effect on these categories.
+Potential Effects:
+
+muWinLose_poverty_gap = 1.50 (-2.85, 5.93) suggests a possible increase in WinLose with higher poverty_gap, but the uncertainty is large.
+muMixMix_poverty_gap = 0.89 (-2.82, 4.59) suggests a small increase in MixMix, though the effect is uncertain.
+Possible Negative Effects:
+
+muWinMix_poverty_gap = -2.18 (-5.39, 0.97) suggests a potential decrease in WinMix as poverty_gap increases, but the confidence interval crosses zero.
+4. Model Convergence & Reliability
+𝑅ℎ𝑎𝑡
+Rhat values are all close to 1.00, indicating proper convergence.
+Bulk_ESS and Tail_ESS values are generally high, suggesting reliable sampling.
+Overall Interpretation
+The effect of poverty_gap on joint.outcome is mostly uncertain due to wide confidence intervals.
+The WinWin and WinMix categories have the highest baseline probability.
+There is substantial variation across groups, particularly in LoseMix and WinLose.
+The model is well-converged, but the data may not provide strong evidence of an effect.
+
+### Interpretation of Model Outputs - Influence of Gender poverty gap (p0p100) on Joint Outcomes ###
+Interpretation of Model Output: Bmod.joint.p0p100
+This model investigates the relationship between Equal.p0p100 (a measure of equality) and joint.outcome, incorporating random effects (random.effect2) to account for group-level variation across 12 levels.
+
+1. Random Effects (random.effect2)
+The standard deviations of the random intercepts show how much variation exists between groups:
+
+Most Variable Categories:
+
+muLoseMix_Intercept (SD = 2.21) → Highest variability in LoseMix outcome across groups.
+muWinLose_Intercept (SD = 1.76) → Substantial variation in WinLose across groups.
+Least Variable Categories:
+
+muWinMix_Intercept (SD = 0.38) → Smallest group-level variation.
+muWinWin_Intercept (SD = 0.72) → More stable across groups.
+This suggests that some outcomes (e.g., LoseMix, WinLose) differ significantly by group, while others (e.g., WinMix, WinWin) are more stable.
+
+2. Intercepts (mu*_Intercept)
+The intercepts represent the log-odds of each category when Equal.p0p100 = 0.
+
+Most Likely Outcomes at Baseline:
+
+muWinWin_Intercept = 3.61 and muWinMix_Intercept = 3.00 → These have the highest baseline log-odds.
+muMixMix_Intercept = 2.40 → Also a relatively common category.
+Less Likely Outcomes at Baseline:
+
+muLoseMix_Intercept = -1.03, muMixLose_Intercept = -0.42, muWinLose_Intercept = -0.07 → These categories are less frequent.
+The WinWin outcome appears to be the most common by far.
+
+3. Effect of Equal.p0p100 (Regression Coefficients)
+These coefficients show how an increase in Equal.p0p100 affects the log-odds of each category.
+
+Strong Negative Effects (Possible Reduction in These Outcomes with Higher Equal.p0p100)
+
+muMixMix_Equal.p0p100 = -2.74 (-6.59, 1.17) → Suggests a decrease in MixMix as equality increases, but CI includes zero.
+muWinWin_Equal.p0p100 = -1.07 (-4.31, 2.26) → Possible decrease in WinWin, but also uncertain.
+Positive Effects (Possible Increase in These Outcomes with Higher Equal.p0p100)
+
+muMixWin_Equal.p0p100 = 2.10 (-1.65, 6.06) → Suggests a potential increase in MixWin, but the wide CI suggests uncertainty.
+Uncertain or Weak Effects
+
+Most coefficients have very large standard errors and confidence intervals that span zero.
+Example:
+muLoseMix_Equal.p0p100 = -0.92 (-6.20, 4.09)
+muLoseWin_Equal.p0p100 = -1.37 (-6.06, 2.89)
+muWinMix_Equal.p0p100 = 0.05 (-3.06, 3.17)
+This indicates no clear evidence that Equal.p0p100 strongly influences these categories.
+4. Model Convergence & Reliability
+𝑅ℎat
+Rhat values are all ~1.00, indicating that the model has converged well.
+Bulk_ESS and Tail_ESS values are sufficiently high, suggesting a reliable number of effective samples.
+Overall Interpretation
+WinWin and WinMix remain the most likely outcomes at baseline.
+The effect of Equal.p0p100 on joint.outcome is mostly uncertain due to large confidence intervals.
+A potential negative effect on MixMix and WinWin exists, but it's not conclusive.
+The model is well-converged, but the evidence for a strong effect of Equal.p0p100 is weak.
+
+### Interpretation of Model Outputs - Influence of Equal.p0p50 on Joint Outcomes ###
+Interpretation of Model Output: Bmod.joint.Equal.p0p50
+This model assesses the relationship between Equal.p0p50 and joint.outcome, while accounting for random effects (random.effect2) across 12 levels.
+
+1. Random Effects (random.effect2)
+The standard deviations of the random intercepts indicate how much variation exists between groups.
+
+Most Variable Categories:
+
+sd(muLoseMix_Intercept) = 2.12 → High variability in LoseMix across groups.
+sd(muWinLose_Intercept) = 1.62 → Considerable variation in WinLose.
+Least Variable Categories:
+
+sd(muWinMix_Intercept) = 0.38 → Smallest group-level variation.
+sd(muWinWin_Intercept) = 0.70 → More stable across groups.
+This suggests that some outcomes (LoseMix, WinLose) vary substantially across groups, while others (WinMix, WinWin) are more stable.
+
+2. Intercepts (mu*_Intercept)
+These represent the log-odds of each outcome when Equal.p0p50 = 0.
+
+Most Likely Outcomes at Baseline:
+
+muWinWin_Intercept = 3.04 → Highest log-odds, meaning WinWin is the most frequent.
+muWinMix_Intercept = 2.55 → Also a common outcome.
+muMixWin_Intercept = 2.19 → Another relatively likely category.
+Less Likely Outcomes at Baseline:
+
+muLoseMix_Intercept = -1.06
+muMixLose_Intercept = -0.39
+muWinLose_Intercept = 0.39
+These categories are less frequently observed when Equal.p0p50 = 0.
+
+3. Effect of Equal.p0p50 (Regression Coefficients)
+These coefficients represent how an increase in Equal.p0p50 affects the log-odds of each category.
+
+Strongest Positive Effects (Increase in These Outcomes with Higher Equal.p0p50)
+
+muWinMix_Equal.p0p50 = 3.09 (-1.53, 7.70) → Potential increase, but wide confidence interval (CI) suggests uncertainty.
+muWinWin_Equal.p0p50 = 2.05 (-2.57, 6.71) → Possible increase in WinWin, but uncertainty remains.
+Strongest Negative Effects (Decrease in These Outcomes with Higher Equal.p0p50)
+
+muWinLose_Equal.p0p50 = -1.69 (-7.29, 3.78) → Possible decrease, but uncertain.
+muLoseMix_Equal.p0p50 = -1.16 (-6.73, 4.36) → Suggests a decrease, but the large CI suggests weak evidence.
+Uncertain or Weak Effects
+
+Most estimates have large standard errors and confidence intervals spanning zero.
+Example:
+muMixMix_Equal.p0p50 = 1.28 (-4.16, 6.73)
+muMixWin_Equal.p0p50 = -0.78 (-5.91, 4.15)
+These results suggest no strong evidence that Equal.p0p50 systematically affects many categories.
+
+4. Model Convergence & Reliability
+𝑅ℎ𝑎𝑡
+Rhat values are all ~1.00, indicating proper model convergence.
+Bulk_ESS and Tail_ESS values are sufficiently large, suggesting reliable posterior estimates.
+Overall Interpretation
+WinWin and WinMix remain the most frequent outcomes at baseline.
+The effect of Equal.p0p50 on joint.outcome is mostly uncertain due to large confidence intervals.
+Potential increases in WinWin and WinMix outcomes with higher Equal.p0p50 but results are not strongly conclusive.
+The model is well-converged, but the wide CIs indicate weak statistical evidence for many of these effects.
+
+### Interpretation of Model Outputs - Influence of Equal.p90p100 (top10%) on Joint Outcomes ###
+Interpretation of Model Output: Bmod.joint.Equal.p90p100
+This model examines how Equal.p90p100 (economic equality within the top 10%) influences joint.outcome, incorporating random effects (random.effect2) across 12 levels.
+
+1. Random Effects (random.effect2)
+The standard deviations (sd) indicate how much variability exists across groups in the dataset.
+
+Most Variable Outcomes:
+
+sd(muLoseMix_Intercept) = 2.19, sd(muWinLose_Intercept) = 1.92
+These outcomes are highly dependent on group differences.
+Least Variable Outcomes:
+
+sd(muWinMix_Intercept) = 0.38, sd(muWinWin_Intercept) = 0.72
+These outcomes are more stable across groups.
+2. Intercepts (*_Intercept)
+These represent the baseline log-odds of each outcome when Equal.p90p100 = 0.
+
+Most Frequent Outcomes:
+
+muWinWin_Intercept = 3.86 (2.17, 5.67)
+muWinMix_Intercept = 3.30 (1.72, 4.90)
+These suggest that "WinWin" and "WinMix" are the most common outcomes.
+Less Frequent Outcomes:
+
+muWinLose_Intercept = -1.17 (-4.88, 1.73)
+muLoseMix_Intercept = -0.67 (-4.51, 2.49)
+These negative values suggest that "WinLose" and "LoseMix" are less likely.
+3. Effect of Equal.p90p100 on Outcomes
+The regression coefficients (*_Equal.p90p100) measure how changes in top 10% equality affect each outcome.
+
+No Strong Evidence of an Effect:
+
+Most confidence intervals are wide and include zero, meaning we can't conclude a strong relationship.
+Notable (but uncertain) effects:
+
+muWinLose_Equal.p90p100 = 2.31 (-2.22, 6.97) → Suggests a potential increase in "WinLose" when inequality in the top 10% increases, but highly uncertain.
+muLoseWin_Equal.p90p100 = -1.04 (-4.84, 2.59) → Possible decrease in "LoseWin," but not conclusive.
+muWinWin_Equal.p90p100 = -1.04 (-3.88, 1.96) → Possible negative effect on "WinWin," but uncertain.
+Minimal Effects:
+
+Many coefficients (e.g., muMixMix_Equal.p90p100 = 0.28 (-3.27, 3.84)) hover around zero, suggesting that Equal.p90p100 does not strongly influence these outcomes.
+4. Model Convergence & Reliability
+𝑅ℎ𝑎𝑡
+Rhat values are all 1.00, indicating good convergence.
+Bulk_ESS and Tail_ESS values are sufficient, meaning the estimates are stable.
+Overall Interpretation
+"WinWin" and "WinMix" are the most frequent outcomes at baseline.
+The impact of Equal.p90p100 is unclear, as most estimates have wide confidence intervals.
+Some variation across groups exists, especially for LoseMix and WinLose.
+The model converged well, but there’s no strong evidence that top 10% equality affects joint outcomes.
+
+### Interpretation of Model Outputs - Influence of Equal.p99p100 (top1%) on Joint Outcomes ###
+Interpretation of Model Output: Bmod.joint.Equal.p99p100
+This model explores how Equal.p99p100 (likely a measure of economic equality at the top 1%) affects joint.outcome, with random effects (random.effect2) across 12 levels.
+________________________________________
+1. Random Effects (random.effect2)
+The standard deviations (sd) indicate how much variation exists across different groups in the dataset.
+•	Highest Variability:
+o	sd(muLoseMix_Intercept) = 2.16 and sd(muWinLose_Intercept) = 1.88 → These outcomes vary significantly across groups.
+•	Lowest Variability:
+o	sd(muWinMix_Intercept) = 0.40 and sd(muWinWin_Intercept) = 0.79 → These outcomes are more stable across groups.
+This suggests that the likelihood of some outcomes (especially LoseMix and WinLose) depends heavily on the group.
+________________________________________
+2. Intercepts (*_Intercept)
+These represent the log-odds of each outcome when Equal.p99p100 = 0 (baseline).
+•	Most Common Outcomes:
+o	muWinMix_Intercept = 3.48 (2.40, 4.64)
+o	muWinWin_Intercept = 3.45 (2.25, 4.70)
+o	These values indicate that the "WinMix" and "WinWin" outcomes are the most frequent at baseline.
+•	Less Common Outcomes:
+o	muLoseMix_Intercept = -0.95 (-4.57, 1.46)
+o	muWinLose_Intercept = -0.46 (-3.35, 1.44)
+o	These negative values suggest that "LoseMix" and "WinLose" outcomes are less likely.
+________________________________________
+3. Effect of Equal.p99p100 on Outcomes
+The regression coefficients (*_Equal.p99p100) capture how changes in top 1% equality impact each outcome.
+•	No Strong Evidence of an Effect:
+o	Most coefficients have wide confidence intervals that include zero, meaning there is no clear, significant relationship.
+•	Largest Estimates (Still Uncertain):
+o	muWinLose_Equal.p99p100 = 2.42 (-1.96, 7.01) → A large estimate, but very uncertain.
+o	muLoseMix_Equal.p99p100 = -1.11 (-6.34, 4.13) → Could suggest a decrease, but again highly uncertain.
+o	muWinMix_Equal.p99p100 = -2.21 (-5.38, 0.80) → A potential negative effect on "WinMix," but not statistically strong.
+•	Near-Zero Effects:
+o	Many other coefficients are close to zero, meaning there is no clear pattern between economic equality at the top 1% and joint outcomes.
+________________________________________
+4. Model Convergence & Reliability
+•	RhatRhatRhat values are all 1.00, indicating good convergence.
+•	Bulk_ESS and Tail_ESS are large, meaning the estimates are stable and reliable.
+________________________________________
+Overall Interpretation
+•	"WinMix" and "WinWin" are the most frequent outcomes at baseline.
+•	The effect of Equal.p99p100 is unclear, as confidence intervals are too wide to make strong conclusions.
+•	Some variation across groups exists, especially in LoseMix and WinLose.
+•	The model is well-converged, but does not show strong effects of top 1% equality on joint outcomes.
+
+
+### Interpretation of Model Outputs - Influence of IneqInc2010 on Joint Outcomes ###
+Summary of Model Output: Bmod.joint.IneqInc2010
+This model investigates the effect of IneqInc2010 (Income Inequality in 2010) on joint.outcome, while accounting for random effects (random.effect2) across 12 levels.
+
+1. Random Effects (random.effect2)
+The standard deviations (sd) of the random intercepts indicate how much variation exists across groups.
+
+Most Variable Outcomes Across Groups:
+
+sd(muLoseMix_Intercept) = 2.57 (high variability in LoseMix across groups).
+sd(muWinLose_Intercept) = 2.05 (high variability in WinLose).
+Least Variable Outcomes Across Groups:
+
+sd(muWinMix_Intercept) = 0.44 (relatively small group-level variation).
+sd(muMixWin_Intercept) = 0.88 (also fairly stable).
+This suggests that some categories (LoseMix, WinLose) show high variation across groups, while others (WinMix, MixWin) are more stable.
+
+2. Intercepts (mu*_Intercept)
+These represent the log-odds of each outcome when IneqInc2010 = 0.
+
+Most Likely Outcomes at Baseline:
+
+muWinWin_Intercept = 4.62 → WinWin is the most frequent outcome.
+muMixWin_Intercept = 2.99 → MixWin is also relatively common.
+Less Likely Outcomes at Baseline:
+
+muMixLose_Intercept = -2.37
+muWinLose_Intercept = -1.31
+These categories occur less frequently when IneqInc2010 = 0.
+3. Effect of IneqInc2010 on Outcomes
+The regression coefficients (mu*_IneqInc2010) indicate how changes in IneqInc2010 affect the log-odds of each outcome.
+
+All coefficients are small (close to zero) and have confidence intervals that include zero.
+
+No strong evidence that IneqInc2010 has a substantial effect on joint.outcome.
+
+Largest Estimates (Still Weak Effects):
+
+muWinMix_IneqInc2010 = 0.05 (-0.03, 0.14): Suggests a slight positive relationship, but not statistically strong.
+muWinLose_IneqInc2010 = 0.04 (-0.09, 0.19): Also a minor positive effect.
+Negligible or Negative Effects:
+
+muWinWin_IneqInc2010 = -0.04 (-0.12, 0.05): Suggests a possible small negative effect, but again, not strong.
+muLoseMix_IneqInc2010 = -0.03 (-0.15, 0.09): Essentially no effect.
+Since all estimates have large confidence intervals and cross zero, the model suggests that income inequality in 2010 does not have a clear impact on these outcomes.
+
+4. Model Convergence & Reliability
+𝑅ℎ𝑡
+Rhat values are all ~1.00, indicating proper model convergence.
+Bulk_ESS and Tail_ESS values are sufficiently large, meaning reliable posterior estimates.
+Overall Interpretation
+WinWin remains the most frequent outcome at baseline.
+IneqInc2010 does not appear to have a significant effect on any outcome.
+Some categories (LoseMix, WinLose) show high group-level variability.
+The model is well-converged, but the effects of IneqInc2010 are weak or negligible.
+
+
+###Plot influence of "poverty gap" on probability of joint outcomes###
+
+```{r}
+### Plot Fixed Effects Estimates with Confidence Intervals  ###
+# Generate the conditional effects plot
+effects_plot5 <- plot(conditional_effects(Bmod.joint.povgap, categorical = TRUE), plot = FALSE)
+
+effects_plot5[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+# Generate the conditional effects plot
+effects_plot5b <- plot(conditional_effects(Bmod.joint.p0p100, categorical = TRUE), plot = FALSE)
+
+effects_plot5b[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+
+# Generate the conditional effects plot
+effects_plot5c <- plot(conditional_effects(Bmod.joint.Equal.p0p50, categorical = TRUE), plot = FALSE)
+
+effects_plot5c[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+
+# Generate the conditional effects plot
+effects_plot5d <- plot(conditional_effects(Bmod.joint.Equal.p99p100, categorical = TRUE), plot = FALSE)
+
+effects_plot5d[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+# Generate the conditional effects plot
+effects_plot5e <- plot(conditional_effects(Bmod.joint.Equal.p90p100, categorical = TRUE), plot = FALSE)
+
+effects_plot5e[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color
+
+# Generate the conditional effects plot
+effects_plot5f <- plot(conditional_effects(Bmod.joint.IneqInc2010, categorical = TRUE), plot = FALSE)
+
+effects_plot5f[[1]] +  
+  theme_minimal() +  # Remove grey background
+  theme(
+    axis.text.x = element_text(hjust = 1, size = 14),  # Increase x-axis font size
+    axis.text.y = element_text(size = 14),  # Increase y-axis font size
+    axis.title.x = element_text(size = 16),  # Increase x-axis title font size
+    axis.title.y = element_text(size = 16)   # Increase y-axis title font size
+  ) +
+  scale_fill_viridis_d(name = "Joint Outcome", option = "C") +  # Viridis colorblind-friendly palette
+  scale_color_viridis_d(name = "Joint Outcome", option = "C")   # Match fill and color 
+```
+
+```{r povertybrm 2000}
+##First run the model with the backdated data (to proxy prevailing conditions before or at the time of the study)
+##1. Poverty Gap
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.povgap.2000 <- brm(
+  formula = joint.outcome ~ WB2017.povgap.2000 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.povgap.2000)
+
+#Write outputs to file
+sink("Bmod.joint.povgap.2000_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.povgap.2000))      # Print summary
+sink()                                # Reset output back to console
+
+
+# 7. Poverty severity
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.povseverity.2000 <- brm(
+  formula = joint.outcome ~ WB2017.povseverity.2000 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.povseverity.2000)
+
+#Write outputs to file
+sink("Bmod.joint.povseverity.2000_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.povseverity.2000))      # Print summary
+sink()
+
+# 8. Poverty headcount: Poverty rate, percent $6.95 - Poverty headcount ratio (2017 PPP) (% of population)
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.povheadcount2000 <- brm(
+  formula = joint.outcome ~ WB2017.pov.headcount.2000 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.povheadcount2000)
+
+#Write outputs to file
+sink("Bmod.joint.povheadcount2000_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.povheadcount2000))      # Print summary
+sink()
+
+# 9. Income Share Held by Highest 20%
+# Fit a multinomial logistic regression with a random intercept for "country"
+Bmod.joint.IncShareTop20.2000 <- brm(
+  formula = joint.outcome ~ WB2017.decile20.2000 + (1 | random.effect2),  # Fixed effect of SDG, random intercept for country
+  data = datleg,
+  family = categorical(),  # Multinomial logistic regression
+  prior = priors1,
+  save_pars = save_pars(all = TRUE),  # Ensure all parameters are saved
+  control = list(adapt_delta = 0.99, max_treedepth = 12),  # Prevent divergences
+  #chains = 2, iter = 2000, warmup = 500, cores = 2  # Adjust settings as needed
+  backend = "cmdstanr"  # Switch to faster Stan backend
+)
+
+# Summarize results
+summary(Bmod.joint.IncShareTop20.2000)
+
+#Write outputs to file
+sink("Bmod.joint.IncShareTop20.2000_summary.txt")  # Redirect output to file
+print(summary(Bmod.joint.IncShareTop20.2000))      # Print summary
+sink()
+
+```
+
+--------------------------------------------------------------------------------------------------
+## Compare random effects models with brms##
+--------------------------------------------------------------------------------------------------
+
+```{r}
+# Load required packages
+library(brms)
+library(bridgesampling)  # Needed for Bayes Factor computation
+```
+
+
+# Compute Bayesian Model Comparison Metrics
+Instead of AIC, use:
+WAIC (Widely Applicable Information Criterion) - Lower WAIC/LOOIC means a better model.
+LOOIC (Leave-One-Out Cross-Validation Information Criterion)
+Preferred over WAIC, as it is more robust to influential observations.
+
+Other metrics:
+Bayes Factor (bayes_factor()) – compares models based on marginal likelihood.
+Posterior Predictive Checks (pp_check()) – evaluates how well the model fits data.
+Bayesian R² (bayes_R2()) – assesses explanatory power.
+
+## Compute WAIC & LOOIC
+```{r}
+# Compute WAIC & LOOIC
+#loo1 <- loo(Bmod.joint.Equal.p99p100)
+#loo2 <- loo(Bmod.joint.Equal.p90p100)
+# Compare models
+#loo_compare(loo1, loo2)
+
+#Alternatively, you can use add_criterion() to store WAIC/LOOIC in each model:
+#Bmod.joint.Equal.p99p100 <- add_criterion(Bmod.joint.Equal.p99p100, "loo")
+#Bmod.joint.Equal.p90p100 <- add_criterion(Bmod.joint.Equal.p90p100, "loo")
+#loo_compare(Bmod.joint.Equal.p99p100, Bmod.joint.Equal.p90p100)
+
+# Compute for list of models
+model.list <- list(Bmod.joint.Lead, Bmod.joint.WBinc, Bmod.joint.HDI1990, Bmod.joint.HDIav, Bmod.joint.hfp2000, Bmod.joint.hfp2018, Bmod.joint.SDG2000, Bmod.joint.p0p100, 
+               Bmod.joint.Equal.p0p50, Bmod.joint.Equal.p90p100, Bmod.joint.Equal.p99p100, Bmod.joint.IncShareTop20.1990, Bmod.joint.IncShareTop20.2000,Bmod.joint.IneqInc2010,
+               Bmod.joint.povgap, Bmod.joint.povgap.2000, Bmod.joint.povseverity, Bmod.joint.povseverity.2000, Bmod.joint.povheadcount1990, Bmod.joint.povheadcount2000)
+
+waic_values <- sapply(model.list, function(mod) WAIC(mod)$estimates["waic", "Estimate"])
+loo_values <- sapply(model.list, function(mod) LOO(mod)$estimates["looic", "Estimate"])
+
+# Create a summary table
+model_names <- paste0("Model ", seq_along(model.list))
+comparison_table <- data.frame(Model = model_names, WAIC = waic_values, LOOIC = loo_values)
+
+# Print sorted results (lower WAIC/LOOIC is better)
+comparison_table[order(comparison_table$WAIC), ]
+
+
+```
+
+## Compute alternative Bayesian Model Metrics
+```{r}
+#1.Bayes Factor (bayes_factor())
+#Interpretation:
+#BF > 1 → Model1 is better than Model2.
+#BF < 1 → Model2 is better than Model1.
+#BF > 3 → Moderate evidence for better model.
+#BF > 10 → Strong evidence for better model.
+
+# Compute marginal likelihood using bridge sampling
+bridge.Lead <- bridge_sampler(Bmod.joint.Lead)
+bridge.WBinc <- bridge_sampler(Bmod.joint.WBinc)
+bridge.HDI1990 <- bridge_sampler(Bmod.joint.HDI1990)
+bridge.HDIav <- bridge_sampler(Bmod.joint.HDIav)
+bridge.hfp2000 <- bridge_sampler(Bmod.joint.hfp2000)
+bridge.hfp2018 <- bridge_sampler(Bmod.joint.hfp2018)
+bridge.SDG2000 <- bridge_sampler(Bmod.joint.SDG2000)
+bridge.p0p100 <- bridge_sampler(Bmod.joint.p0p100)
+bridge.Equal.p0p50 <- bridge_sampler(Bmod.joint.Equal.p0p50)
+bridge.Equal.p90p100 <- bridge_sampler(Bmod.joint.Equal.p90p100)
+bridge.Equal.p99p100 <- bridge_sampler(Bmod.joint.Equal.p99p100)
+bridge.IncShareTop20.1990 <- bridge_sampler(Bmod.joint.IncShareTop20.1990)
+bridge.IncShareTop20.2000 <- bridge_sampler(Bmod.joint.IncShareTop20.2000)
+bridge.IneqInc2010 <- bridge_sampler(Bmod.joint.IneqInc2010)
+bridge.povgap <- bridge_sampler(Bmod.joint.povgap)
+bridge.povgap.2000 <- bridge_sampler(Bmod.joint.povgap.2000)
+bridge.povseverity <- bridge_sampler(Bmod.joint.povseverity)
+bridge.povseverity.2000 <- bridge_sampler(Bmod.joint.povseverity.2000)
+bridge.povheadcount1990 <- bridge_sampler(Bmod.joint.povheadcount1990)
+bridge.povheadcount2000 <- bridge_sampler(Bmod.joint.povheadcount2000)
+
+# Compute Bayes Factor (BF)
+model.list <- list(Bmod.joint.Lead, Bmod.joint.WBinc, Bmod.joint.HDI1990, Bmod.joint.HDIav, Bmod.joint.hfp2000, Bmod.joint.hfp2018, Bmod.joint.SDG2000, Bmod.joint.p0p100, 
+               Bmod.joint.Equal.p0p50, Bmod.joint.Equal.p90p100, Bmod.joint.Equal.p99p100, Bmod.joint.IncShareTop20.1990, Bmod.joint.IncShareTop20.2000,Bmod.joint.IneqInc2010,
+               Bmod.joint.povgap, Bmod.joint.povgap.2000, Bmod.joint.povseverity, Bmod.joint.povseverity.2000, Bmod.joint.povheadcount1990, Bmod.joint.povheadcount2000)
+
+#BF <- bayes_factor(bridge1, bridge2)
+BF <- bayes_factor(bridge.Lead, bridge.WBinc)
+print(BF)
+
+# Function to compute Bayes factors for all pairs
+compare_models <- function(models) {
+  pairs <- combn(seq_along(models), 2, simplify = FALSE)
+  results <- lapply(pairs, function(idx) {
+    model1 <- models[[idx[1]]]
+    model2 <- models[[idx[2]]]
+    bf <- tryCatch(
+      bayes_factor(model1, model2),
+      error = function(e) NA
+    )
+    list(model1 = names(models)[idx[1]], model2 = names(models)[idx[2]], BF = bf)
+  })
+  return(do.call(rbind, lapply(results, as.data.frame)))
+}
+
+BF_results <- compare_models(model.list)
+print(BF_results)
+
+
+#Write outputs to file
+sink("Bmod.joint.BayesFactor_results.txt")  # Redirect output to file
+print(BF)      # Print summary
+sink()                                # Reset output back to console
+
+# 2. Posterior Predictive Checks (pp_check())
+# Evaluates how well the model fits data by comparing observed vs. simulated data.
+# Interpretation:
+#If model predictions (blue) match observed data (black) → good fit. 
+#If model predictions differ greatly → poor fit. 
+# Posterior predictive check for a single model
+#pp_check(Bmod.joint.Equal.p99p100)
+
+#Can be customized:
+#pp_check(Bmod.joint.Equal.p99p100, type = "dens_overlay")  # Overlay observed vs. simulated density
+#pp_check(Bmod.joint.Equal.p99p100, type = "hist")  # Histogram of posterior predictions
+
+# For all models at once
+library(ggplot2)  # Required for ggtitle()
+library(patchwork) #For wrap_plots
+
+
+# Store models in a list (20 models)
+model.list <- list(Bmod.joint.Lead, Bmod.joint.WBinc, Bmod.joint.HDI1990, Bmod.joint.HDIav, Bmod.joint.hfp2000, Bmod.joint.hfp2018, Bmod.joint.SDG2000, Bmod.joint.p0p100, 
+               Bmod.joint.Equal.p0p50, Bmod.joint.Equal.p90p100, Bmod.joint.Equal.p99p100, Bmod.joint.IncShareTop20.1990, Bmod.joint.IncShareTop20.2000,Bmod.joint.IneqInc2010,
+               Bmod.joint.povgap, Bmod.joint.povgap.2000, Bmod.joint.povseverity, Bmod.joint.povseverity.2000, Bmod.joint.povheadcount1990, Bmod.joint.povheadcount2000)
+
+# Loop through and generate pp_check plots
+#par(mfrow = c(4, 5))  # Arrange plots in a grid
+#for (i in 1:length(model.list)) {
+#    print(pp_check(model.list[[i]]) + ggtitle(paste("Model", i)))
+#}
+
+# Generate posterior predictive check plots
+plots <- lapply(seq_along(model.list), function(i) {
+  pp_check(model.list[[i]]) + ggtitle(paste("Model", i))  # Add title
+})
+
+# Combine plots into a 5x4 grid
+combined_plot <- wrap_plots(plots, ncol = 5, nrow = 4)
+
+# Print the combined plot (if running interactively)
+print(combined_plot)
+# Save as PNG
+ggsave("Bmod.joint.ppc_combined_plot.png", combined_plot, width = 15, height = 12, dpi = 300)
+
+
+
+# 3. Bayesian R² (bayes_R2()) - Can't be used for unordered categorical models
+# Assesses explanatory power, similar to frequentist R².
+# Ranges from 0 to 1 (higher = better fit).
+# Interpretation:
+# Closer to 1 → Model explains most variance.
+# Closer to 0 → Poor explanatory power.
+# 
+# # Compute Bayesian R²
+# #bayes_R2(model) #for a single model
+# 
+# # Compute Bayesian R² for each model
+# r2_results <- lapply(model.list, bayes_R2)
+# 
+# # Print results
+# r2_results
+# 
+# #Write outputs to file
+# sink("Bmod.joint.r2_results.txt")  # Redirect output to file
+# print(r2_results)      # Print summary
+# sink()                                # Reset output back to console
+
+```
+
+
+
+##Scatterplot of outcomes
+```{r}
+#library(ggplot2)
+#library(patchwork)
+
+# 1. Define the desired order of the categories
+outcome_order <- c("Lose-Lose", "Lose-Mix", "Mix-Lose", "Mix-Mix",
+                     "Lose-Win", "Win-Lose", "Win-Mix", "Mix-Win", "Win-Win")
+
+# 2. Convert the joint.outcome column to a factor with the specified levels
+datleg$joint.outcome <- factor(datleg$joint.outcome, levels = outcome_order)
+
+# 3. Plot function (modified to handle factors correctly)
+plot_scatter <- function(data, Lead, y_var, y_label, title) {
+  ggplot(data, aes(x = joint.outcome, y = {{ y_var }}, color = Lead)) +
+    geom_point(shape = 16, size = 3, alpha = 0.6) +
+    labs(x = "Social-ecological outcomes", y = y_label, title = title, color = "Lead") +
+    theme_bw() +
+    theme(axis.text.x = element_text(angle = 90, vjust = 0.5, hjust=1)) + 
+    scale_color_manual(values = c("Farmer" = "dark green", "Researcher" = "orange")) # Customize colors
+}
+
+# 4. Generate the individual plots (using the factor column)
+plot_HDI1990 <- plot_scatter(datleg, Lead, HDI1990, "HDI (1990)", "a)")
+ggsave("HDI1990.png", plot_HDI1990, path = "C:/Users/tullocha/Documents/")  
+plot_HDIav <- plot_scatter(datleg, Lead, HDIav, "HDI (average)", "b)")
+ggsave("HDIav.png", plot_HDIav, path = "C:/Users/tullocha/Documents/")  
+plot_SDG2000 <- plot_scatter(datleg, Lead, BackdateSDGIndex2000, "SDG Score (2000)", "c)")
+ggsave("SDG2000.png", plot_SDG2000, path = "C:/Users/tullocha/Documents/")  
+plot_SDGav <- plot_scatter(datleg, Lead, SDGav, "SDG Score (Average)", "d)")
+ggsave("SDGav.png", plot_SDGav, path = "C:/Users/tullocha/Documents/")  
+
+# 5. Combine plots
+#png("C:/Users/tullocha/Documents/plotScatter_HDI.SDG.png", width = 800, height = 800)
+combined_plot <- (plot_HDI1990 + plot_HDIav) / (plot_SDG2000 + plot_SDGav)
+ggsave("plotScatter_HDI.SDG.png", plot_HDI1990, path = "C:/Users/tullocha/Documents/")  
+#print(combined_plot)
+#dev.off()
+
+
+
+```
+

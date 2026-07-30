@@ -1,4 +1,4 @@
-# Repository of the article entitled "Legume intensification leads to social ecological win-win outcomes globally" (DAPR - NCOMMS-24-55796-T) UPDATED 2025
+# Repository of the article entitled "Social–ecological outcomes from legume-based intensification for food production " (DAPR - NCOMMS-24-55796) UPDATED 2025
 
 ## 1. System Requirements
 
@@ -46,7 +46,7 @@ On a typical desktop or laptop, installation should take approximately 5-10 minu
 
 ### Instructions to Run the code in R studio
 
-After installation, you can run the codes "Aggregated_models_2025.R",  "Disaggregated_models_2025.R" and "Multinom.Log.Reg.Legumes.Rmd", by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datafiles from the folder named "Data", to fit and plot the models and generate visualisations included on the paper submitted.
+After installation, you can run the codes "Aggregated_models_2026.R",and "Disaggregated_models_2026.R", by copying it into your R script editor (or RStudio) and executing the script. The codes process multiple datafiles from the folder named "Data", to fit and plot the models and generate visualisations included on the paper submitted.
 
 ### Expected Run Time
 The demo should complete in under 2 minutes on a standard desktop computer.
@@ -70,9 +70,9 @@ The demo should complete in under 2 minutes on a standard desktop computer.
 
 ## 5. Other files in this repository
 
-The file "Master_dataset_legumes_2025.csv" includes all data extracted from the results of a systematic review of the peer-reviewed literature on grain legume intercropping and rotations in agri-food systems.
-- The file "References_Legumes_2025" provides details for all papers and cases that reported at least one ecological outcome (ecosystem services and/or biodiversity) and one human well-being outcome from introducing legumes into an agri-food production system.
-- The file "Metadata_and_quality_assessment_codes_2025" provides descriptions of all columns in the DataExtractionArticles sheet, as well as the Quality Assessment Table used to evaluate each article for study design, reporting quality, and risk of bias.
+The file "Master_dataset_legumes_2026.csv" includes all data extracted from the results of a systematic review of the peer-reviewed literature on grain legume intercropping and rotations in agri-food systems.
+- The file "References_Legumes_2026" provides details for all papers and cases that reported at least one ecological outcome (ecosystem services and/or biodiversity) and one human well-being outcome from introducing legumes into an agri-food production system.
+- The file "Metadata_and_quality_assessment_codes_2026" provides descriptions of all columns in the DataExtractionArticles sheet, as well as the Quality Assessment Table used to evaluate each article for study design, reporting quality, and risk of bias.
 - The folder "Data" includes the filtered datasets needed to run the R codes.
 
 

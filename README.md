@@ -1,4 +1,4 @@
-# Repository of the article entitled "Social–ecological outcomes from legume-based intensification for food production " (DAPR - NCOMMS-24-55796) UPDATED 2025
+# Repository of the article entitled "Social–ecological outcomes from legume-based intensification for food production " (DAPR - NCOMMS-24-55796) UPDATED 2026
 
 ## 1. System Requirements
 
